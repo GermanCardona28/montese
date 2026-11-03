@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Móntese</string>
+    <string name="title_activity_main">Móntese</string>
+    <string name="package_name">co.montese.app</string>
+    <string name="custom_url_scheme">co.montese.app</string>
+</resources>

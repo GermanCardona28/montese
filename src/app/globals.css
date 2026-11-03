@@ -1,0 +1,223 @@
+@import "tailwindcss";
+
+/* Móntese — identidad: carbón + amarillo y verde de los buses de la región. Tipografía Plus Jakarta Sans, autoalojada. */
+@font-face{font-family:"Plus Jakarta Sans";font-weight:400 800;font-style:normal;font-display:swap;src:url("/fonts/plus-jakarta-sans.woff2") format("woff2");}
+
+:root {
+  --bg: #191919;
+  --surface: #242424;
+  --surface-2: #2f2f2f;
+  --ink: #ffffff;
+  --muted: #a9a9a9;
+  --red: #e5484d; /* solo para errores y avisos */
+  --blue: #1e6fd9;
+  --green: #1f9d55;
+  --yellow: #ffd500;
+  --r: 28px;
+  --r-sm: 12px;
+  --nav-h: 72px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-red: var(--red);
+  --color-blue: var(--blue);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --radius-brand: var(--r);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--yellow);
+  color: #111;
+}
+
+:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+button, a, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Tipografía de póster */
+.display {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.heading {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+/* Botones: una sola forma */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 56px;
+  padding: 0 1.6rem;
+  border: 0;
+  border-radius: var(--r);
+  font-weight: 600;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+  transition: transform 160ms var(--ease), background-color 160ms;
+}
+.btn:active { transform: scale(0.97); }
+.btn-yellow { background: var(--yellow); color: #111; }
+.btn-yellow:hover { background: #ffe14d; }
+.btn-dark { background: #111; color: #fff; }
+.btn-dark:hover { background: #000; }
+.btn-ghost { background: var(--surface-2); color: #fff; }
+.btn-ghost:hover { background: #3a3a3a; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Cartel de ruta: el letrero del bus como elemento de marca */
+.cartel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.6rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--r-sm);
+  background: var(--yellow);
+  color: #111;
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+/* Campos */
+.campo {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: var(--r);
+  background: #fff;
+  color: #111;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.campo::placeholder { color: #6b6b6b; }
+
+/* ---------- Animaciones ---------- */
+
+/* Titular enmascarado: cada línea sube desde su línea base */
+.mask { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+.mask > span {
+  display: block;
+  transform: translateY(110%);
+  animation: sube 900ms var(--ease) forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes sube { to { transform: translateY(0); } }
+
+/* Entrada escalonada */
+.rise {
+  opacity: 0;
+  transform: translateY(24px);
+  animation: rise 700ms var(--ease) forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+.page-in { animation: page-in 420ms var(--ease) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* Bus que recorre la calle */
+.bus-ruta { animation: bus-drive 14s linear infinite; }
+@keyframes bus-drive {
+  0% { transform: translateX(-30vw); }
+  100% { transform: translateX(110vw); }
+}
+.bus-body { animation: bus-bob 0.6s ease-in-out infinite alternate; }
+@keyframes bus-bob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+.rueda { transform-box: fill-box; transform-origin: center; animation: gira 0.7s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* Calle y paradas que se desplazan */
+.calle-marcas { animation: calle 1.2s linear infinite; }
+@keyframes calle { to { transform: translateX(-96px); } }
+
+.parada-pulso { transform-box: fill-box; transform-origin: center; animation: pulso 2s ease-out infinite; animation-delay: var(--d, 0ms); }
+@keyframes pulso { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.2); opacity: 0; } }
+
+.punto-vivo { animation: vivo 1.6s ease-in-out infinite; }
+@keyframes vivo { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* Trazado que se dibuja */
+.dibuja { stroke-dasharray: 1; stroke-dashoffset: 1; animation: dibuja 1.6s var(--ease) forwards; animation-delay: var(--d, 0ms); }
+@keyframes dibuja { to { stroke-dashoffset: 0; } }
+
+/* Hoja inferior */
+.hoja-in { animation: hoja 520ms var(--ease) both; }
+@keyframes hoja { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Marcadores del mapa */
+.marcador {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  animation: marcador-in 500ms var(--ease) both;
+}
+@keyframes marcador-in { from { transform: scale(0); } to { transform: scale(1); } }
+.marcador-bus { width: 44px; height: 44px; pointer-events: none; }
+
+.skeleton {
+  border-radius: var(--r);
+  background: var(--surface);
+  animation: vivo 1.3s ease-in-out infinite;
+}
+
+/* Mapa: un poco menos brillante para convivir con el carbón */
+.maplibregl-canvas { filter: saturate(0.85); }
+.maplibregl-ctrl-group { border-radius: 16px !important; overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+  .mask > span, .rise { transform: none; opacity: 1; }
+  .dibuja { stroke-dashoffset: 0; }
+}
