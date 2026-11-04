@@ -15,7 +15,8 @@ const CICLO = 20000;
 const ALTO_ESCENA = 260; // unidades de la escena (ancho 1200)
 const ANCHO_ESCENA = 1200;
 
-const T = { frena: 0.25, arranca: 0.6, acelera: 0.7, amarillo: 0.16, rojo: 0.21, verde: 0.575, camIni: 0.35, camFin: 0.55 };
+// amarillo: 0 → el semáforo ya está en amarillo al acercarse el bus; camIni = rojo + 1 s (luz peatonal)
+const T = { frena: 0.25, arranca: 0.6, acelera: 0.7, amarillo: 0, rojo: 0.21, verde: 0.56, camIni: 0.26, camFin: 0.5 };
 const S_PARADA = 500;
 const S_ARRANQUE = 700;
 const S_TOTAL = 2500;
@@ -73,9 +74,9 @@ function escalon(a: number, b: number, c1: number, c2: number): Rango {
 }
 
 const PERSONAS = [
-  { id: "pato", x: 30, ini: T.camIni, fin: T.camFin - 0.03 },
-  { id: "mujer", x: 66, ini: T.camIni + 0.01, fin: T.camFin - 0.01 },
-  { id: "hombre", x: 102, ini: T.camIni + 0.03, fin: T.camFin + 0.01 },
+  { id: "pato", x: 30, ini: T.camIni, fin: T.camIni + 0.17 },
+  { id: "mujer", x: 66, ini: T.camIni + 0.01, fin: T.camIni + 0.19 },
+  { id: "hombre", x: 102, ini: T.camIni + 0.02, fin: T.camIni + 0.21 },
 ] as const;
 
 function Pato() {
@@ -179,8 +180,8 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
       giro,
       personas,
       rojo: escalon(0.18, 1, T.rojo, T.verde),
-      amarillo: escalon(0.18, 1, T.amarillo, T.rojo),
-      verde: { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.verde - 0.0001, T.verde, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] },
+      amarillo: { entradas: [0, T.rojo - 0.0001, T.rojo, 1], salidas: [1, 1, 0.18, 0.18] },
+      verde: { entradas: [0, T.verde - 0.0001, T.verde, 1], salidas: [0.18, 0.18, 1, 1] },
       peRojo: { entradas: [0, T.camIni - 0.0001, T.camIni, T.camFin - 0.0001, T.camFin, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] },
       peVerde: escalon(0.18, 1, T.camIni, T.camFin),
     };
@@ -258,32 +259,6 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
             />
           ))}
 
-          {/* peatones: esperan atrás, cruzan con la luz peatonal y se quedan quietos adelante */}
-          {m.personas.map((p) => {
-            const Figura = FIGURAS[p.id];
-            return (
-              <Animated.View
-                key={p.id}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: 80 * escala,
-                  height: 80 * escala,
-                  transform: [
-                    { translateX: (X_SEMAFORO + p.x - 40) * escala },
-                    { translateY: ip(p.y, (v) => (v - 60) * escala) as Animated.AnimatedInterpolation<number> },
-                    { scale: ip(p.s) as Animated.AnimatedInterpolation<number> },
-                    { rotate: ip(p.paso, (v) => `${v}deg`) as Animated.AnimatedInterpolation<string> },
-                  ],
-                }}
-              >
-                <Svg width={80 * escala} height={80 * escala} viewBox="-40 -60 80 80">
-                  <Figura />
-                </Svg>
-              </Animated.View>
-            );
-          })}
         </Animated.View>
 
         {/* bus: fijo en pantalla */}
@@ -319,6 +294,46 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
             />
           ))}
         </View>
+
+        {/* peatones: van por encima del bus, en el mismo mundo que se desplaza */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: ANCHO_MUNDO * escala,
+            height: ALTO_ESCENA * escala,
+            transform: [{ translateX: ip(m.mundoX, (v) => v * escala) as Animated.AnimatedInterpolation<number> }],
+          }}
+        >
+          {/* peatones: esperan atrás, cruzan con la luz peatonal y se quedan quietos adelante */}
+          {m.personas.map((p) => {
+            const Figura = FIGURAS[p.id];
+            return (
+              <Animated.View
+                key={p.id}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: 80 * escala,
+                  height: 80 * escala,
+                  transform: [
+                    { translateX: (X_SEMAFORO + p.x - 40) * escala },
+                    { translateY: ip(p.y, (v) => (v - 60) * escala) as Animated.AnimatedInterpolation<number> },
+                    { scale: ip(p.s) as Animated.AnimatedInterpolation<number> },
+                    { rotate: ip(p.paso, (v) => `${v}deg`) as Animated.AnimatedInterpolation<string> },
+                  ],
+                }}
+              >
+                <Svg width={80 * escala} height={80 * escala} viewBox="-40 -60 80 80">
+                  <Figura />
+                </Svg>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
       </View>
     </View>
   );

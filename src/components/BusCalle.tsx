@@ -9,7 +9,8 @@
 const CICLO = 20; // segundos
 
 // Línea de tiempo (en % del ciclo)
-const T = { frena: 25, arranca: 60, acelera: 70, amarillo: 16, rojo: 21, verde: 57.5, camIni: 35, camFin: 55 };
+// amarillo: 0 → el semáforo ya está en amarillo cuando el bus se le acerca; camIni = rojo + 1 s (la luz peatonal tarda 1 s)
+const T = { frena: 25, arranca: 60, acelera: 70, amarillo: 0, rojo: 21, verde: 56, camIni: 26, camFin: 50 };
 
 // Distancias de desplazamiento del mundo (unidades del viewBox 1200 × 260)
 const S_PARADA = 500; // lo que recorre el mundo hasta que el bus se detiene
@@ -41,9 +42,9 @@ function cruce(nombre: string, ini: number, fin: number) {
 }
 
 const PERSONAS = [
-  { id: "pato", ini: T.camIni, fin: T.camFin - 3, amp: 9 },
-  { id: "mujer", ini: T.camIni + 1, fin: T.camFin - 1, amp: 22 },
-  { id: "hombre", ini: T.camIni + 3, fin: T.camFin + 1, amp: 22 },
+  { id: "pato", ini: T.camIni, fin: T.camIni + 17, amp: 9 },
+  { id: "mujer", ini: T.camIni + 1, fin: T.camIni + 19, amp: 22 },
+  { id: "hombre", ini: T.camIni + 2, fin: T.camIni + 21, amp: 22 },
 ];
 
 const css = `
@@ -69,8 +70,9 @@ const css = `
 .bc-luz-a{animation:bc-a ${CICLO}s step-end infinite}
 .bc-luz-v{animation:bc-v ${CICLO}s step-end infinite}
 @keyframes bc-r{0%{opacity:.18}${T.rojo}%{opacity:1}${T.verde}%{opacity:.18}}
-@keyframes bc-a{0%{opacity:.18}${T.amarillo}%{opacity:1}${T.rojo}%{opacity:.18}}
-@keyframes bc-v{0%{opacity:1}${T.amarillo}%{opacity:.18}${T.verde}%{opacity:1}}
+.bc-mundo2{animation:bc-mundo ${CICLO}s infinite}
+@keyframes bc-a{0%{opacity:1}${T.rojo}%{opacity:.18}}
+@keyframes bc-v{0%{opacity:.18}${T.verde}%{opacity:1}}
 .bc-pe-r{animation:bc-per ${CICLO}s step-end infinite}
 .bc-pe-v{animation:bc-pev ${CICLO}s step-end infinite}
 @keyframes bc-per{0%{opacity:1}${T.camIni}%{opacity:.18}${T.camFin}%{opacity:1}}
@@ -90,7 +92,7 @@ ${marcha(`bc-m-${p.id}-b`, p.ini, p.fin, -p.amp)}
 ).join("")}
 .bc-pato .bc-pato-cuerpo{animation:bc-m-pato-a ${CICLO}s infinite}
 @media (prefers-reduced-motion:reduce){
-  .bc-mundo{animation:none;transform:translateX(-${S_PARADA}px)}
+  .bc-mundo,.bc-mundo2{animation:none;transform:translateX(-${S_PARADA}px)}
   .bc-vibra,.bc-rueda,.bc-parada,.bc-pato .bc-pato-cuerpo,.bc-pierna,.bc-brazo{animation:none!important}
   .bc-luz-r{animation:none;opacity:1}.bc-luz-a,.bc-luz-v{animation:none;opacity:.18}
   .bc-pe-r{animation:none;opacity:1}.bc-pe-v{animation:none;opacity:.18}
@@ -157,6 +159,39 @@ export default function BusCalle({ className = "" }: { className?: string }) {
             <circle cx="0" cy="125" r="3.6" fill="#e5484d" className="bc-pe-r" />
             <circle cx="0" cy="135" r="3.6" fill="#1f9d55" className="bc-pe-v" />
 
+          </g>
+        </g>
+
+        {/* bus: fijo en pantalla (la cámara lo sigue) */}
+        <g transform={`translate(${X_BUS} 128)`}>
+          <g className="bc-vibra">
+            <g transform="scale(.75)">
+              <rect x="4" y="14" width="312" height="90" rx="22" fill="#ffd500" />
+              <rect x="4" y="72" width="312" height="18" fill="#1f9d55" />
+              <rect x="24" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
+              <rect x="92" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
+              <rect x="160" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
+              <rect x="228" y="26" width="72" height="56" rx="8" fill="#1a2a30" />
+              <rect x="234" y="31" width="60" height="11" rx="4" fill="#fff" />
+              <text x="264" y="40" textAnchor="middle" fontSize="9" fontWeight="800" fill="#111">
+                MÓNTESE
+              </text>
+              <circle cx="306" cy="90" r="5" fill="#fff" />
+              {[70, 248].map((cx) => (
+                <g key={cx}>
+                  <circle cx={cx} cy="106" r="19" fill="#111" />
+                  <g className="bc-rueda">
+                    <circle cx={cx} cy="106" r="9" fill="#ffd500" />
+                    <rect x={cx - 1.5} y="97" width="3" height="18" fill="#111" />
+                  </g>
+                </g>
+              ))}
+            </g>
+          </g>
+        </g>
+        {/* peatones: van por encima del bus, en el mismo mundo que se desplaza */}
+        <g className="bc-mundo2">
+          <g transform={`translate(${X_SEMAFORO} 0)`}>
             {/* pato */}
             <g transform="translate(30 0)">
               <g className="bc-pato">
@@ -201,34 +236,6 @@ export default function BusCalle({ className = "" }: { className?: string }) {
                 <path d="M-6.8 -42 A6.8 6.8 0 0 1 6.8 -42 L6.8 -44 A6.8 6.8 0 0 0 -6.8 -44 Z" fill="#2b1d16" />
                 <rect x="-6.6" y="-48" width="13.2" height="5" rx="2.5" fill="#2b1d16" />
               </g>
-            </g>
-          </g>
-        </g>
-
-        {/* bus: fijo en pantalla (la cámara lo sigue) */}
-        <g transform={`translate(${X_BUS} 128)`}>
-          <g className="bc-vibra">
-            <g transform="scale(.75)">
-              <rect x="4" y="14" width="312" height="90" rx="22" fill="#ffd500" />
-              <rect x="4" y="72" width="312" height="18" fill="#1f9d55" />
-              <rect x="24" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
-              <rect x="92" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
-              <rect x="160" y="26" width="58" height="42" rx="8" fill="#1a2a30" />
-              <rect x="228" y="26" width="72" height="56" rx="8" fill="#1a2a30" />
-              <rect x="234" y="31" width="60" height="11" rx="4" fill="#fff" />
-              <text x="264" y="40" textAnchor="middle" fontSize="9" fontWeight="800" fill="#111">
-                MÓNTESE
-              </text>
-              <circle cx="306" cy="90" r="5" fill="#fff" />
-              {[70, 248].map((cx) => (
-                <g key={cx}>
-                  <circle cx={cx} cy="106" r="19" fill="#111" />
-                  <g className="bc-rueda">
-                    <circle cx={cx} cy="106" r="9" fill="#ffd500" />
-                    <rect x={cx - 1.5} y="97" width="3" height="18" fill="#111" />
-                  </g>
-                </g>
-              ))}
             </g>
           </g>
         </g>
