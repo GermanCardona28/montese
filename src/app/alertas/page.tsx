@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { cargarIncidentes, type Incidente } from "@/lib/rutas";
 import BusCalle from "@/components/BusCalle";
+import TraficoWaze from "@/components/TraficoWaze";
 
 const TIPOS: Record<string, string> = {
   trancon: "Trancón",
@@ -43,6 +44,7 @@ export default function Alertas() {
               {a.descripcion && <p className="mt-1 text-lg">{a.descripcion}</p>}
             </div>
           ))}
+          <TraficoWaze />
           <div className="rounded-[var(--r)] bg-surface p-6">
             <p className="heading text-xl">Pronto podrás reportar.</p>
             <p className="mt-1 text-muted">
