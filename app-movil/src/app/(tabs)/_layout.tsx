@@ -1,5 +1,6 @@
 import type { ColorValue } from "react-native";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { C, F } from "@/theme";
 
@@ -23,13 +24,14 @@ const icono = (nombre: string) =>
   };
 
 export default function TabsLayout() {
+  const { bottom } = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: C.yellow,
         tabBarInactiveTintColor: C.muted,
-        tabBarStyle: { backgroundColor: C.surface, borderTopWidth: 0, height: 66, paddingTop: 6, paddingBottom: 8 },
+        tabBarStyle: { backgroundColor: C.surface, borderTopWidth: 0, height: 66 + bottom, paddingTop: 6, paddingBottom: 8 + bottom },
         tabBarLabelStyle: { fontFamily: F.bold, fontSize: 11 },
         sceneStyle: { backgroundColor: C.bg },
       }}

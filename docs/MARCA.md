@@ -6,7 +6,7 @@
 **Idea visual:** el *cartel de ruta* (el letrero con el número que lleva cada bus) es el elemento central. Cada ruta de la app es una placa amarilla con su número en negro; los buses colombianos pintados de rojo, azul, verde y amarillo dan la paleta. Es un cartel callejero: color plano, letra pesada, frases cortas.
 
 ## Logo
-Un bus amarillo visto de frente con letrero verde; el parabrisas verde forma la **M** de Móntese. Amarillo y verde son los colores de la mayoría de flotas de la región. Archivo: `src/components/Logo.tsx`.
+**La Buseta:** una buseta amarilla vista de frente, con espejos, sobre una placa verde; el parabrisas negro forma la **M** de Móntese. Amarillo y verde son los colores de la mayoría de flotas de la región. Sin la placa solo va sobre fondos claros, porque espejos y llantas son negros. Archivos: `src/components/Logo.tsx` y `app-movil/src/components/Marca.tsx`; vectores en `docs/logo-opciones/a-buseta-*.svg`.
 
 ## Color
 | Rol | Valor |

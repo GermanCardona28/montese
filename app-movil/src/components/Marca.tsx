@@ -4,17 +4,24 @@ import { C, F, Rs } from "@/theme";
 import { Txt } from "@/components/ui";
 import { coloresBus, type EmpresaFlota } from "@/lib/rutas";
 
-/** Marca: un bus amarillo visto de frente; el parabrisas verde forma la "M" de Móntese. */
-export function LogoMark({ size = 40 }: { size?: number }) {
+/** Marca "La Buseta": buseta amarilla de frente; el parabrisas forma la "M" de Móntese.
+ *  Va sobre placa verde; sin ella (`sinPlaca`) solo para fondos claros, como el mapa. */
+export function LogoMark({ size = 40, sinPlaca }: { size?: number; sinPlaca?: boolean }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Rect x="8" y="8" width="48" height="46" rx="12" fill="#ffd500" />
-      <Rect x="16" y="13" width="32" height="8" rx="4" fill="#1f9d55" />
-      <Path d="M14 46V27h8l10 10 10-10h8v19h-7v-9.5L32 47l-11-10.5V46Z" fill="#1f9d55" />
-      <Circle cx="17" cy="52" r="3.2" fill="#fff" />
-      <Circle cx="47" cy="52" r="3.2" fill="#fff" />
-      <Rect x="13" y="54" width="11" height="7" rx="3" fill="#191919" />
-      <Rect x="40" y="54" width="11" height="7" rx="3" fill="#191919" />
+    <Svg width={size} height={size} viewBox="0 0 512 512">
+      {!sinPlaca && <Rect width="512" height="512" rx="116" fill="#1f9d55" />}
+      <Rect x="84" y="150" width="30" height="72" rx="13" fill="#191919" />
+      <Rect x="398" y="150" width="30" height="72" rx="13" fill="#191919" />
+      <Rect x="104" y="166" width="24" height="14" fill="#191919" />
+      <Rect x="384" y="166" width="24" height="14" fill="#191919" />
+      <Rect x="150" y="372" width="58" height="60" rx="16" fill="#191919" />
+      <Rect x="304" y="372" width="58" height="60" rx="16" fill="#191919" />
+      <Rect x="122" y="84" width="268" height="316" rx="58" fill="#ffd500" />
+      <Rect x="186" y="104" width="140" height="28" rx="14" fill="#191919" />
+      <Path d="M144 302V168a18 18 0 0 1 18-18h26l68 78 68-78h26a18 18 0 0 1 18 18v134h-54v-74l-58 66-58-66v74Z" fill="#191919" />
+      <Circle cx="170" cy="348" r="21" fill="#fff" />
+      <Circle cx="342" cy="348" r="21" fill="#fff" />
+      <Rect x="216" y="338" width="80" height="20" rx="10" fill="#191919" />
     </Svg>
   );
 }

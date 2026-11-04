@@ -134,6 +134,8 @@ export default function Viaje() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ height: "40%" }}>
         <MapaRutas rutas={rutasMapa} selId={null} viaje={actual && a && b ? { a: a.pos, b: b.pos, pasos: actual.pasos } : null} />
+        {/* Franja oscura para que la hora y los iconos del celular se lean sobre el mapa */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: top, backgroundColor: C.bg }} />
         <Pressable onPress={() => router.back()} style={[s.atras, { top: top + 10 }]} accessibilityRole="button" accessibilityLabel="Volver">
           <Txt style={{ fontFamily: F.bold, fontSize: 15 }}>← Cambiar</Txt>
         </Pressable>

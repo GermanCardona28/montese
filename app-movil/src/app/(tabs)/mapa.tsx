@@ -33,6 +33,8 @@ export default function Mapa() {
       <View style={{ flex: 1 }}>
         {rutas ? <MapaRutas rutas={rutas} selId={sel} onSelect={setSel} trafico={trafico} /> : !error && <Esqueleto alto={600} style={{ borderRadius: 0 }} />}
         {error && <Txt style={{ color: C.red, padding: 24 }}>No se pudo cargar el mapa. Revisa tu conexión.</Txt>}
+        {/* Franja oscura para que la hora y los iconos del celular se lean sobre el mapa */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: top, backgroundColor: C.bg }} />
 
         <View style={[s.barra, { top: top + 10 }]} pointerEvents="box-none">
           <Pressable onPress={() => setTrafico((t) => !t)} style={[s.btnTrafico, trafico && { backgroundColor: C.yellow }]} accessibilityRole="button" accessibilityState={{ selected: trafico }}>

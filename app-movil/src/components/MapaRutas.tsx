@@ -165,7 +165,7 @@ function MarcadorBus({ pos }: { pos: LatLng }) {
   }, []);
   return (
     <Marker coordinate={pos} anchor={{ x: 0.5, y: 0.5 }} zIndex={20} tracksViewChanges={sigue}>
-      <LogoMark size={46} />
+      <LogoMark size={46} sinPlaca />
     </Marker>
   );
 }
