@@ -14,6 +14,7 @@ const ALTO_ESCENA = 260; // unidades de la escena (ancho 1200)
 const ANCHO_ESCENA = 1200;
 const T = { frena: 0.3, arranca: 0.72, amarillo: 0.28, rojo: 0.33 };
 const X_PARADA = 335;
+const X_FUERA = 1260;
 const Y_ATRAS = 168;
 const Y_FRENTE = 252;
 
@@ -54,10 +55,10 @@ const PERSONAS = [
 function Pato() {
   return (
     <G>
-      <Ellipse cx={0} cy={-10} rx={9} ry={7} fill="#fff" />
-      <Ellipse cx={-9} cy={-10} rx={2.6} ry={5} fill="#e6e6e6" />
-      <Ellipse cx={9} cy={-10} rx={2.6} ry={5} fill="#e6e6e6" />
-      <Circle cx={0} cy={-20} r={6} fill="#fff" />
+      <Ellipse cx={0} cy={-10} rx={9} ry={7} fill="#ffd500" />
+      <Ellipse cx={-9} cy={-10} rx={2.6} ry={5} fill="#f2b705" />
+      <Ellipse cx={9} cy={-10} rx={2.6} ry={5} fill="#f2b705" />
+      <Circle cx={0} cy={-20} r={6} fill="#ffd500" />
       <Ellipse cx={0} cy={-17.5} rx={4} ry={2.4} fill="#f08c00" />
       <Circle cx={-2.6} cy={-21} r={1} fill="#111" />
       <Circle cx={2.6} cy={-21} r={1} fill="#111" />
@@ -74,7 +75,7 @@ function Mujer() {
       <Rect x={1} y={-14} width={4} height={14} fill="#e0a97a" />
       <Rect x={-11} y={-33} width={3} height={13} rx={1.5} fill="#e0a97a" />
       <Rect x={8} y={-33} width={3} height={13} rx={1.5} fill="#e0a97a" />
-      <Path d="M-9 -14 L-6 -35 L6 -35 L9 -14 Z" fill="#1e6fd9" />
+      <Path d="M-9 -14 L-6 -35 L6 -35 L9 -14 Z" fill="#f06aa8" />
       <Rect x={-7.4} y={-46} width={3.4} height={17} rx={1.7} fill="#2b1d16" />
       <Rect x={4} y={-46} width={3.4} height={17} rx={1.7} fill="#2b1d16" />
       <Circle cx={0} cy={-41} r={7} fill="#2b1d16" />
@@ -123,31 +124,30 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
     const amarillo = { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.rojo - 0.0001, T.rojo, 1], salidas: [0.18, 0.18, 1, 1, 0.18, 0.18] };
     const verde = { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.arranca, T.arranca + 0.0001, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] };
     const giro = unir(curva(0, 1000, 0, T.frena, frenar), { entradas: [T.frena, T.arranca], salidas: [1000, 1000] }, curva(1000, 2800, T.arranca, 1, arrancar));
+    // Peatones siempre visibles: entran por la izquierda (acera de atrás), cruzan y salen por la derecha (acera de adelante).
     const personas = PERSONAS.map((p) => {
-      const baja = (v: number, a: number) => ({ entradas: [0, 0.04, p.ini, p.fin, 0.9, 0.94, 0.95, 1], salidas: [a, a, a, v, v, v, a, a] });
+      const e = [0, p.ini, p.fin, 0.97, 0.9701, 1];
       return {
         ...p,
-        y: baja(Y_FRENTE, Y_ATRAS),
-        s: { entradas: [0, 0.04, p.ini, p.fin, 0.9, 0.94, 0.95, 1], salidas: [0.82, 0.82, 0.82, 1.08, 1.08, 1.08, 0.82, 0.82] },
-        op: { entradas: [0, 0.04, 0.9, 0.94, 0.95, 1], salidas: [0, 1, 1, 0, 0, 0] },
-        // balanceo al caminar: oscila solo mientras cruza
-        paso: (() => {
-          const e: number[] = [0], s: number[] = [0];
-          const pasos = 14;
-          for (let i = 0; i <= pasos; i++) {
-            e.push(p.ini + ((p.fin - p.ini) * i) / pasos);
-            s.push(i % 2 === 0 ? 1 : -1);
-          }
-          e.push(p.fin + 0.006, 1);
-          s.push(0, 0);
-          return { entradas: e, salidas: s };
-        })(),
+        x: { entradas: e, salidas: [-60, p.x, p.x, X_FUERA, -60, -60] },
+        y: { entradas: e, salidas: [Y_ATRAS, Y_ATRAS, Y_FRENTE, Y_FRENTE, Y_ATRAS, Y_ATRAS] },
+        s: { entradas: e, salidas: [0.82, 0.82, 1.08, 1.08, 0.82, 0.82] },
       };
     });
     return { busX, rojo, amarillo, verde, giro, personas };
   }, []);
 
-  const rot = (r: Rango, grados: number) => t.interpolate({ inputRange: r.entradas, outputRange: r.salidas.map((v) => `${v * grados}deg`), extrapolate: "clamp" });
+  // balanceo al caminar: oscila siempre, con su propio reloj corto
+  const paso = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const a = Animated.loop(Animated.sequence([
+      Animated.timing(paso, { toValue: 1, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(paso, { toValue: 0, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    a.start();
+    return () => a.stop();
+  }, [paso]);
+  const balanceo = paso.interpolate({ inputRange: [0, 1], outputRange: ["-4deg", "4deg"] });
 
   return (
     <View style={{ height: alto, overflow: "hidden", backgroundColor: C.bg }}>
@@ -263,12 +263,11 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
                 top: 0,
                 width: 80 * escala,
                 height: 80 * escala,
-                opacity: rango(p.op, t),
                 transform: [
-                  { translateX: (p.x - 40) * escala },
+                  { translateX: t.interpolate({ inputRange: p.x.entradas, outputRange: p.x.salidas.map((v) => (v - 40) * escala) }) },
                   { translateY: t.interpolate({ inputRange: p.y.entradas, outputRange: p.y.salidas.map((v) => (v - 60) * escala) }) },
                   { scale: rango(p.s, t) },
-                  { rotate: rot(p.paso, p.id === "pato" ? 6 : 3) },
+                  { rotate: balanceo },
                 ],
               }}
             >

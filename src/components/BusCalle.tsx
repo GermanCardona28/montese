@@ -15,22 +15,12 @@ const X_FUERA = 1260;
 const Y_ACERA_ATRAS = 168;
 const Y_ACERA_FRENTE = 252;
 
-/** Balanceo de piernas/brazos o del pato mientras caminan: oscila entre `ini` y `fin` (% del ciclo). */
-function marcha(nombre: string, ini: number, fin: number, pasos: number, amp: number) {
-  let k = `@keyframes ${nombre}{0%{transform:rotate(0deg)}`;
-  for (let i = 0; i <= pasos; i++) {
-    const p = (ini + ((fin - ini) * i) / pasos).toFixed(2);
-    k += `${p}%{transform:rotate(${i % 2 === 0 ? amp : -amp}deg)}`;
-  }
-  k += `${(fin + 0.6).toFixed(2)}%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}`;
-  return k;
-}
-
-/** Trayecto de un peatón: espera atrás, cruza de la acera de atrás a la de adelante y desaparece para repetir. */
+/** Trayecto de un peatón (siempre visible): entra por la izquierda por la acera de atrás, cruza la cebra
+ * cuando el bus ya está parado y sigue por la acera de adelante hasta salir; al repetir el ciclo entra de nuevo. */
 function cruce(nombre: string, x: number, ini: number, fin: number) {
-  const arriba = `translate(${x}px,${Y_ACERA_ATRAS}px) scale(.82)`;
-  const abajo = `translate(${x}px,${Y_ACERA_FRENTE}px) scale(1.08)`;
-  return `@keyframes ${nombre}{0%{opacity:0;transform:${arriba}}4%{opacity:1;transform:${arriba}}${ini}%{opacity:1;transform:${arriba}}${fin}%{opacity:1;transform:${abajo}}90%{opacity:1;transform:${abajo}}94%{opacity:0;transform:${abajo}}95%{opacity:0;transform:${arriba}}100%{opacity:0;transform:${arriba}}}`;
+  const atras = (px: number) => `translate(${px}px,${Y_ACERA_ATRAS}px) scale(.82)`;
+  const frente = (px: number) => `translate(${px}px,${Y_ACERA_FRENTE}px) scale(1.08)`;
+  return `@keyframes ${nombre}{0%{transform:${atras(-60)}}${ini}%{transform:${atras(x)}}${fin}%{transform:${frente(x)}}97%{transform:${frente(X_FUERA)}}97.01%{transform:${atras(-60)}}100%{transform:${atras(-60)}}}`;
 }
 
 const PERSONAS = [
@@ -64,26 +54,26 @@ const css = `
 @keyframes bc-v{0%{opacity:1}${T.amarillo}%{opacity:.18}${T.arranca}%{opacity:1}}
 .bc-parada{transform-box:fill-box;transform-origin:center;animation:bc-pulso 2s ease-out infinite}
 @keyframes bc-pulso{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.2);opacity:0}}
-.bc-p{opacity:0}
 .bc-pierna,.bc-brazo{transform-box:fill-box;transform-origin:50% 0%}
 .bc-pato-cuerpo{transform-box:fill-box;transform-origin:50% 100%}
 ${PERSONAS.map(
   (p) => `
 .bc-${p.id}{animation:bc-cruza-${p.id} ${CICLO}s infinite}
 ${cruce(`bc-cruza-${p.id}`, p.x, p.ini, p.fin)}
-${marcha(`bc-m-${p.id}-a`, p.ini, p.fin, p.pasos, p.amp)}
-${marcha(`bc-m-${p.id}-b`, p.ini, p.fin, p.pasos, -p.amp)}
-.bc-${p.id} .a{animation:bc-m-${p.id}-a ${CICLO}s infinite}
-.bc-${p.id} .b{animation:bc-m-${p.id}-b ${CICLO}s infinite}`
+`
 ).join("")}
-.bc-pato .bc-pato-cuerpo{animation:bc-m-pato-a ${CICLO}s infinite}
+.bc-pierna.a,.bc-brazo.a{animation:bc-paso .55s ease-in-out infinite alternate}
+.bc-pierna.b,.bc-brazo.b{animation:bc-paso .55s ease-in-out infinite alternate-reverse}
+@keyframes bc-paso{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+.bc-pato .bc-pato-cuerpo{animation:bc-pato-paso .4s ease-in-out infinite alternate}
+@keyframes bc-pato-paso{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}
 @media (prefers-reduced-motion:reduce){
   .bc-bus{animation:none;transform:translateX(${X_PARADA}px)}
   .bc-vibra,.bc-rueda,.bc-parada,.bc-pato .bc-pato-cuerpo,.bc-pierna,.bc-brazo{animation:none!important}
   .bc-luz-r{animation:none;opacity:1}.bc-luz-a,.bc-luz-v{animation:none;opacity:.18}
-  .bc-pato{animation:none;opacity:1;transform:translate(632px,210px) scale(.95)}
-  .bc-mujer{animation:none;opacity:1;transform:translate(668px,210px) scale(.95)}
-  .bc-hombre{animation:none;opacity:1;transform:translate(704px,210px) scale(.95)}
+  .bc-pato{animation:none;transform:translate(632px,210px) scale(.95)}
+  .bc-mujer{animation:none;transform:translate(668px,210px) scale(.95)}
+  .bc-hombre{animation:none;transform:translate(704px,210px) scale(.95)}
 }
 `;
 
@@ -168,12 +158,12 @@ export default function BusCalle({ className = "" }: { className?: string }) {
         </g>
 
         {/* pato */}
-        <g className="bc-p bc-pato">
+        <g className="bc-pato">
           <g className="bc-pato-cuerpo">
-            <ellipse cx="0" cy="-10" rx="9" ry="7" fill="#fff" />
-            <ellipse cx="-9" cy="-10" rx="2.6" ry="5" fill="#e6e6e6" />
-            <ellipse cx="9" cy="-10" rx="2.6" ry="5" fill="#e6e6e6" />
-            <circle cx="0" cy="-20" r="6" fill="#fff" />
+            <ellipse cx="0" cy="-10" rx="9" ry="7" fill="#ffd500" />
+            <ellipse cx="-9" cy="-10" rx="2.6" ry="5" fill="#f2b705" />
+            <ellipse cx="9" cy="-10" rx="2.6" ry="5" fill="#f2b705" />
+            <circle cx="0" cy="-20" r="6" fill="#ffd500" />
             <ellipse cx="0" cy="-17.5" rx="4" ry="2.4" fill="#f08c00" />
             <circle cx="-2.6" cy="-21" r="1" fill="#111" />
             <circle cx="2.6" cy="-21" r="1" fill="#111" />
@@ -183,12 +173,12 @@ export default function BusCalle({ className = "" }: { className?: string }) {
         </g>
 
         {/* mujer */}
-        <g className="bc-p bc-mujer">
+        <g className="bc-mujer">
           <rect className="bc-pierna a" x="-5" y="-14" width="4" height="14" fill="#e0a97a" />
           <rect className="bc-pierna b" x="1" y="-14" width="4" height="14" fill="#e0a97a" />
           <rect className="bc-brazo b" x="-11" y="-33" width="3" height="13" rx="1.5" fill="#e0a97a" />
           <rect className="bc-brazo a" x="8" y="-33" width="3" height="13" rx="1.5" fill="#e0a97a" />
-          <path d="M-9 -14 L-6 -35 L6 -35 L9 -14 Z" fill="#1e6fd9" />
+          <path d="M-9 -14 L-6 -35 L6 -35 L9 -14 Z" fill="#f06aa8" />
           <rect x="-7.4" y="-46" width="3.4" height="17" rx="1.7" fill="#2b1d16" />
           <rect x="4" y="-46" width="3.4" height="17" rx="1.7" fill="#2b1d16" />
           <circle cx="0" cy="-41" r="7" fill="#2b1d16" />
@@ -196,7 +186,7 @@ export default function BusCalle({ className = "" }: { className?: string }) {
         </g>
 
         {/* hombre */}
-        <g className="bc-p bc-hombre">
+        <g className="bc-hombre">
           <rect className="bc-pierna a" x="-5.2" y="-16" width="4.4" height="16" fill="#2f3640" />
           <rect className="bc-pierna b" x="0.8" y="-16" width="4.4" height="16" fill="#2f3640" />
           <rect className="bc-brazo b" x="-11" y="-34" width="3.6" height="15" rx="1.8" fill="#1f9d55" />
