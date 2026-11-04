@@ -4,22 +4,34 @@ import Svg, { Circle, Ellipse, G, Path, Rect, Text as SvgText } from "react-nati
 import { C } from "@/theme";
 
 /**
- * Escena animada (ciclo de 18 s): el bus avanza, frena en el semáforo cuando pasa a rojo,
- * y mientras espera cruzan la cebra un pato, una mujer y un hombre. Cuando vuelve el verde, el bus arranca.
+ * Escena animada (ciclo de 20 s). La cámara sigue al bus: el bus queda fijo y el mundo (edificios, línea de
+ * la carretera) se desplaza hacia atrás. A los 5 s aparece el semáforo en rojo con el pato, la mujer y el
+ * hombre esperando; cuando se enciende la luz peatonal cruzan y se quedan quietos al otro lado. Luego el
+ * semáforo se pone en verde, el bus arranca, sale de la escena y el ciclo vuelve a empezar.
  * Un solo reloj (0→1) mueve todo, así las piezas siempre quedan sincronizadas.
  */
 
-const CICLO = 18000;
+const CICLO = 20000;
 const ALTO_ESCENA = 260; // unidades de la escena (ancho 1200)
 const ANCHO_ESCENA = 1200;
-const T = { frena: 0.3, arranca: 0.72, amarillo: 0.28, rojo: 0.33 };
-const X_PARADA = 335;
-const X_FUERA = 1260;
+
+const T = { frena: 0.25, arranca: 0.6, acelera: 0.7, amarillo: 0.16, rojo: 0.21, verde: 0.575, camIni: 0.35, camFin: 0.55 };
+const S_PARADA = 500;
+const S_ARRANQUE = 700;
+const S_TOTAL = 2500;
+const MOSAICO = 1250;
+const PERIODO_LINEA = 125;
+const X_BUS = 480;
+const X_SEMAFORO = 1250;
+const GRADOS_PX = 4;
 const Y_ATRAS = 168;
 const Y_FRENTE = 252;
+const ANCHO_MUNDO = 3900;
+
+type Rango = { entradas: number[]; salidas: number[] };
 
 /** Aproxima una curva de aceleración con tramos lineales para usar un solo reloj. */
-function curva(desde: number, hasta: number, t0: number, t1: number, f: (u: number) => number, n = 8) {
+function curva(desde: number, hasta: number, t0: number, t1: number, f: (u: number) => number, n = 10): Rango {
   const entradas: number[] = [], salidas: number[] = [];
   for (let i = 0; i <= n; i++) {
     const u = i / n;
@@ -30,12 +42,13 @@ function curva(desde: number, hasta: number, t0: number, t1: number, f: (u: numb
 }
 const frenar = (u: number) => 1 - Math.pow(1 - u, 3); // sale rápido, llega suave
 const arrancar = (u: number) => Math.pow(u, 3); // sale suave, termina rápido
+const lineal = (u: number) => u;
 
-function unir(...c: { entradas: number[]; salidas: number[] }[]) {
+function unir(...c: Rango[]): Rango {
   const entradas: number[] = [], salidas: number[] = [];
-  c.forEach((x, i) => {
+  c.forEach((x) => {
     x.entradas.forEach((e, j) => {
-      if (i > 0 && j === 0 && e === entradas[entradas.length - 1]) return;
+      if (entradas.length && e === entradas[entradas.length - 1]) return;
       entradas.push(e);
       salidas.push(x.salidas[j]);
     });
@@ -43,13 +56,26 @@ function unir(...c: { entradas: number[]; salidas: number[] }[]) {
   return { entradas, salidas };
 }
 
-type Rango = { entradas: number[]; salidas: number[] };
-const rango = (r: Rango, t: Animated.Value) => t.interpolate({ inputRange: r.entradas, outputRange: r.salidas, extrapolate: "clamp" });
+/** Recorrido acumulado del mundo (en unidades) según el reloj. */
+function recorrido(k = 1): Rango {
+  return unir(
+    curva(0, S_PARADA * k, 0, T.frena, frenar),
+    { entradas: [T.frena, T.arranca], salidas: [S_PARADA * k, S_PARADA * k] },
+    curva(S_PARADA * k, S_ARRANQUE * k, T.arranca, T.acelera, arrancar),
+    curva(S_ARRANQUE * k, S_TOTAL * k, T.acelera, 1, lineal, 2)
+  );
+}
+
+/** Valor `a`, que pasa a `b` entre `c1` y `c2` y vuelve a `a`. */
+function escalon(a: number, b: number, c1: number, c2: number): Rango {
+  const e = 0.0001;
+  return { entradas: [0, c1 - e, c1, c2 - e, c2, 1], salidas: [a, a, b, b, a, a] };
+}
 
 const PERSONAS = [
-  { id: "pato", x: 632, ini: 0.38, fin: 0.56 },
-  { id: "mujer", x: 668, ini: 0.4, fin: 0.62 },
-  { id: "hombre", x: 704, ini: 0.44, fin: 0.66 },
+  { id: "pato", x: 30, ini: T.camIni, fin: T.camFin - 0.03 },
+  { id: "mujer", x: 66, ini: T.camIni + 0.01, fin: T.camFin - 0.01 },
+  { id: "hombre", x: 102, ini: T.camIni + 0.03, fin: T.camFin + 0.01 },
 ] as const;
 
 function Pato() {
@@ -100,6 +126,19 @@ function Hombre() {
 
 const FIGURAS = { pato: Pato, mujer: Mujer, hombre: Hombre } as const;
 
+const EDIFICIOS: [number, number, number, string][] = [
+  [40, 90, 90, "#2a2a2a"],
+  [150, 62, 70, "#333"],
+  [260, 112, 110, "#2a2a2a"],
+  [400, 52, 80, "#333"],
+  [520, 82, 60, "#2a2a2a"],
+  [660, 100, 70, "#333"],
+  [760, 122, 90, "#2a2a2a"],
+  [880, 67, 120, "#333"],
+  [1020, 97, 80, "#2a2a2a"],
+  [1110, 57, 90, "#333"],
+];
+
 /** Escena completa; `alto` es la altura en pantalla y el ancho se recorta al centro (donde ocurre la acción). */
 export default function BusCalle({ alto = 170 }: { alto?: number }) {
   const { width } = useWindowDimensions();
@@ -112,113 +151,143 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
   }, [t]);
 
   const escala = Math.max(width / ANCHO_ESCENA, alto / ALTO_ESCENA);
-  const recorteX = (ANCHO_ESCENA * escala - width) / 2; // se muestra la parte central de la escena
+  const recorteX = (ANCHO_ESCENA * escala - width) / 2;
 
   const m = useMemo(() => {
-    const busX = unir(
-      curva(-260, X_PARADA, 0, T.frena, frenar),
-      { entradas: [T.frena, T.arranca], salidas: [X_PARADA, X_PARADA] },
-      curva(X_PARADA, 1260, T.arranca, 1, arrancar)
-    );
-    const rojo = { entradas: [0, T.rojo - 0.0001, T.rojo, T.arranca, T.arranca + 0.0001, 1], salidas: [0.18, 0.18, 1, 1, 0.18, 0.18] };
-    const amarillo = { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.rojo - 0.0001, T.rojo, 1], salidas: [0.18, 0.18, 1, 1, 0.18, 0.18] };
-    const verde = { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.arranca, T.arranca + 0.0001, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] };
-    const giro = unir(curva(0, 1000, 0, T.frena, frenar), { entradas: [T.frena, T.arranca], salidas: [1000, 1000] }, curva(1000, 2800, T.arranca, 1, arrancar));
-    // Peatones siempre visibles: entran por la izquierda (acera de atrás), cruzan y salen por la derecha (acera de adelante).
+    const mundoX = recorrido(-1);
+    const giro = recorrido(GRADOS_PX);
     const personas = PERSONAS.map((p) => {
-      const e = [0, p.ini, p.fin, 0.97, 0.9701, 1];
+      const e = [0, p.ini, p.fin, 1];
+      // balanceo al caminar: oscila solo mientras cruza
+      const pasos = Math.max(4, Math.round(((p.fin - p.ini) * 20) / 0.3));
+      const be: number[] = [0], bs: number[] = [0];
+      for (let i = 0; i <= pasos; i++) {
+        be.push(p.ini + ((p.fin - p.ini) * i) / pasos);
+        bs.push(i % 2 === 0 ? 4 : -4);
+      }
+      be.push(p.fin + 0.003, 1);
+      bs.push(0, 0);
       return {
         ...p,
-        x: { entradas: e, salidas: [-60, p.x, p.x, X_FUERA, -60, -60] },
-        y: { entradas: e, salidas: [Y_ATRAS, Y_ATRAS, Y_FRENTE, Y_FRENTE, Y_ATRAS, Y_ATRAS] },
-        s: { entradas: e, salidas: [0.82, 0.82, 1.08, 1.08, 0.82, 0.82] },
+        y: { entradas: e, salidas: [Y_ATRAS, Y_ATRAS, Y_FRENTE, Y_FRENTE] },
+        s: { entradas: e, salidas: [0.82, 0.82, 1.08, 1.08] },
+        paso: { entradas: be, salidas: bs },
       };
     });
-    return { busX, rojo, amarillo, verde, giro, personas };
+    return {
+      mundoX,
+      giro,
+      personas,
+      rojo: escalon(0.18, 1, T.rojo, T.verde),
+      amarillo: escalon(0.18, 1, T.amarillo, T.rojo),
+      verde: { entradas: [0, T.amarillo - 0.0001, T.amarillo, T.verde - 0.0001, T.verde, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] },
+      peRojo: { entradas: [0, T.camIni - 0.0001, T.camIni, T.camFin - 0.0001, T.camFin, 1], salidas: [1, 1, 0.18, 0.18, 1, 1] },
+      peVerde: escalon(0.18, 1, T.camIni, T.camFin),
+    };
   }, []);
 
-  // balanceo al caminar: oscila siempre, con su propio reloj corto
-  const paso = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const a = Animated.loop(Animated.sequence([
-      Animated.timing(paso, { toValue: 1, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(paso, { toValue: 0, duration: 280, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]));
-    a.start();
-    return () => a.stop();
-  }, [paso]);
-  const balanceo = paso.interpolate({ inputRange: [0, 1], outputRange: ["-4deg", "4deg"] });
+  const ip = (r: Rango, f?: (v: number) => number | string) =>
+    t.interpolate({ inputRange: r.entradas, outputRange: (f ? r.salidas.map(f) : r.salidas) as string[], extrapolate: "clamp" });
+
+  const mosaicos = [0, 1, 2];
 
   return (
     <View style={{ height: alto, overflow: "hidden", backgroundColor: C.bg }}>
-      <View style={{ position: "absolute", left: -recorteX, bottom: 0, width: ANCHO_ESCENA * escala, height: ALTO_ESCENA * escala }}>
-        {/* fondo fijo */}
-        <Svg width={ANCHO_ESCENA * escala} height={ALTO_ESCENA * escala} viewBox={`0 0 ${ANCHO_ESCENA} ${ALTO_ESCENA}`}>
-          {(
-            [
-              [40, 90, 90, "#2a2a2a"],
-              [150, 62, 70, "#333"],
-              [260, 112, 110, "#2a2a2a"],
-              [400, 52, 80, "#333"],
-              [520, 82, 60, "#2a2a2a"],
-              [760, 122, 90, "#333"],
-              [880, 67, 120, "#2a2a2a"],
-              [1020, 97, 80, "#333"],
-              [1110, 57, 90, "#2a2a2a"],
-            ] as const
-          ).map(([x, h, w, f], i) => (
-            <Rect key={i} x={x} y={150 - h} width={w} height={h} fill={f} />
-          ))}
-          <Rect y={150} width={1200} height={22} fill="#2c2c2c" />
-          <Rect y={172} width={1200} height={66} fill="#0f0f0f" />
-          <Rect y={238} width={1200} height={22} fill="#2c2c2c" />
-          {Array.from({ length: 13 }).map((_, i) => (
-            <Rect key={i} x={i * 96 + 10} y={203} width={48} height={5} rx={2.5} fill="#ffd500" />
-          ))}
-          <Circle cx={215} cy={140} r={9} fill="#ffd500" />
-          <Rect x={212} y={112} width={6} height={40} fill="#ffd500" />
-          <Rect x={193} y={102} width={44} height={22} rx={6} fill="#ffd500" />
-          <SvgText x={215} y={118} fontSize={13} fontWeight="800" fill="#111" textAnchor="middle">BUS</SvgText>
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Rect key={i} x={598 + i * 18} y={172} width={11} height={66} rx={1} fill="#f1f1f1" />
-          ))}
-          <Rect x={586} y={108} width={6} height={46} fill="#555" />
-          <Rect x={574} y={46} width={30} height={66} rx={9} fill="#111" />
-        </Svg>
-
-        {/* lámparas del semáforo (opacidad animada) */}
-        {(
-          [
-            [62, "#e5484d", m.rojo],
-            [80, "#ffd500", m.amarillo],
-            [98, "#1f9d55", m.verde],
-          ] as const
-        ).map(([cy, color, r]) => (
-          <Animated.View
-            key={cy}
-            style={{
-              position: "absolute",
-              left: (589 - 8) * escala,
-              top: (cy - 8) * escala,
-              width: 16 * escala,
-              height: 16 * escala,
-              borderRadius: 8 * escala,
-              backgroundColor: color,
-              opacity: rango(r, t),
-            }}
-          />
-        ))}
-
-        {/* bus */}
+      <View style={{ position: "absolute", left: -recorteX, bottom: 0, width: ANCHO_ESCENA * escala, height: ALTO_ESCENA * escala, overflow: "hidden" }}>
+        {/* mundo: se desplaza hacia atrás mientras el bus (fijo) avanza */}
         <Animated.View
           style={{
             position: "absolute",
-            top: 128 * escala,
-            width: 320 * 0.75 * escala,
-            height: 130 * 0.75 * escala,
-            transform: [{ translateX: t.interpolate({ inputRange: m.busX.entradas, outputRange: m.busX.salidas.map((v) => v * escala) }) }],
+            left: 0,
+            top: 0,
+            width: ANCHO_MUNDO * escala,
+            height: ALTO_ESCENA * escala,
+            transform: [{ translateX: ip(m.mundoX, (v) => v * escala) as Animated.AnimatedInterpolation<number> }],
           }}
         >
+          <Svg width={ANCHO_MUNDO * escala} height={ALTO_ESCENA * escala} viewBox={`0 0 ${ANCHO_MUNDO} ${ALTO_ESCENA}`}>
+            {mosaicos.map((k) => (
+              <G key={k} transform={`translate(${k * MOSAICO} 0)`}>
+                {EDIFICIOS.map(([x, h, w, f], i) => (
+                  <Rect key={i} x={x} y={150 - h} width={w} height={h} fill={f} />
+                ))}
+                <Circle cx={215} cy={140} r={5} fill="#ffd500" opacity={0.5} />
+                <Rect x={212} y={112} width={6} height={40} fill="#ffd500" />
+                <Rect x={193} y={102} width={44} height={22} rx={6} fill="#ffd500" />
+                <SvgText x={215} y={118} fontSize={13} fontWeight="800" fill="#111" textAnchor="middle">BUS</SvgText>
+              </G>
+            ))}
+            <Rect y={150} width={ANCHO_MUNDO} height={22} fill="#2c2c2c" />
+            <Rect y={172} width={ANCHO_MUNDO} height={66} fill="#0f0f0f" />
+            <Rect y={238} width={ANCHO_MUNDO} height={22} fill="#2c2c2c" />
+            {Array.from({ length: 32 }).map((_, i) => (
+              <Rect key={i} x={i * PERIODO_LINEA + 10} y={203} width={55} height={5} rx={2.5} fill="#ffd500" />
+            ))}
+            <G transform={`translate(${X_SEMAFORO} 0)`}>
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Rect key={i} x={10 + i * 18} y={172} width={11} height={66} rx={1} fill="#f1f1f1" />
+              ))}
+              <Rect x={-3} y={108} width={6} height={46} fill="#555" />
+              <Rect x={-15} y={46} width={30} height={66} rx={9} fill="#111" />
+              <Rect x={-7} y={118} width={14} height={24} rx={4} fill="#111" />
+            </G>
+          </Svg>
+
+          {/* lámparas del semáforo (opacidad animada) */}
+          {(
+            [
+              [62, 8, "#e5484d", m.rojo],
+              [80, 8, "#ffd500", m.amarillo],
+              [98, 8, "#1f9d55", m.verde],
+              [125, 3.6, "#e5484d", m.peRojo],
+              [135, 3.6, "#1f9d55", m.peVerde],
+            ] as const
+          ).map(([cy, r, color, rango]) => (
+            <Animated.View
+              key={cy}
+              style={{
+                position: "absolute",
+                left: (X_SEMAFORO - r) * escala,
+                top: (cy - r) * escala,
+                width: 2 * r * escala,
+                height: 2 * r * escala,
+                borderRadius: r * escala,
+                backgroundColor: color,
+                opacity: ip(rango) as Animated.AnimatedInterpolation<number>,
+              }}
+            />
+          ))}
+
+          {/* peatones: esperan atrás, cruzan con la luz peatonal y se quedan quietos adelante */}
+          {m.personas.map((p) => {
+            const Figura = FIGURAS[p.id];
+            return (
+              <Animated.View
+                key={p.id}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: 80 * escala,
+                  height: 80 * escala,
+                  transform: [
+                    { translateX: (X_SEMAFORO + p.x - 40) * escala },
+                    { translateY: ip(p.y, (v) => (v - 60) * escala) as Animated.AnimatedInterpolation<number> },
+                    { scale: ip(p.s) as Animated.AnimatedInterpolation<number> },
+                    { rotate: ip(p.paso, (v) => `${v}deg`) as Animated.AnimatedInterpolation<string> },
+                  ],
+                }}
+              >
+                <Svg width={80 * escala} height={80 * escala} viewBox="-40 -60 80 80">
+                  <Figura />
+                </Svg>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
+
+        {/* bus: fijo en pantalla */}
+        <View style={{ position: "absolute", left: X_BUS * escala, top: 128 * escala, width: 320 * 0.75 * escala, height: 130 * 0.75 * escala }}>
           <Svg width={320 * 0.75 * escala} height={130 * 0.75 * escala} viewBox="0 0 320 130">
             <Rect x={4} y={14} width={312} height={90} rx={22} fill="#ffd500" />
             <Rect x={4} y={72} width={312} height={18} fill="#1f9d55" />
@@ -234,49 +303,22 @@ export default function BusCalle({ alto = 170 }: { alto?: number }) {
             <Circle cx={248} cy={106} r={19} fill="#111" />
             <Circle cx={248} cy={106} r={9} fill="#ffd500" />
           </Svg>
-          {/* radios de las ruedas: giran con el mismo reloj, se detienen cuando el bus frena */}
+          {/* radio de cada rueda: gira según lo recorrido */}
           {[70, 248].map((cx) => (
             <Animated.View
               key={cx}
               style={{
                 position: "absolute",
-                left: (cx / 320) * 320 * 0.75 * escala - 1.5 * 0.75 * escala,
-                top: ((106 - 9) / 130) * 130 * 0.75 * escala,
+                left: cx * 0.75 * escala - 1.5 * 0.75 * escala,
+                top: 97 * 0.75 * escala,
                 width: 3 * 0.75 * escala,
                 height: 18 * 0.75 * escala,
                 backgroundColor: "#111",
-                transform: [{ rotate: t.interpolate({ inputRange: m.giro.entradas, outputRange: m.giro.salidas.map((v) => `${v}deg`) }) }],
+                transform: [{ rotate: ip(m.giro, (v) => `${v}deg`) as Animated.AnimatedInterpolation<string> }],
               }}
             />
           ))}
-        </Animated.View>
-
-        {/* peatones: se dibujan en su propio lienzo y se mueven con el reloj */}
-        {m.personas.map((p) => {
-          const Figura = FIGURAS[p.id];
-          return (
-            <Animated.View
-              key={p.id}
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                width: 80 * escala,
-                height: 80 * escala,
-                transform: [
-                  { translateX: t.interpolate({ inputRange: p.x.entradas, outputRange: p.x.salidas.map((v) => (v - 40) * escala) }) },
-                  { translateY: t.interpolate({ inputRange: p.y.entradas, outputRange: p.y.salidas.map((v) => (v - 60) * escala) }) },
-                  { scale: rango(p.s, t) },
-                  { rotate: balanceo },
-                ],
-              }}
-            >
-              <Svg width={80 * escala} height={80 * escala} viewBox="-40 -60 80 80">
-                <Figura />
-              </Svg>
-            </Animated.View>
-          );
-        })}
+        </View>
       </View>
     </View>
   );
