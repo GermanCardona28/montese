@@ -20,7 +20,7 @@ export type Ruta = {
   codigo: string;
   nombre: string;
   terminal: string | null;
-  recorrido: string | null;
+  resumen: string | null;
   longitud_km: number | null;
   tarifa_cop: number | null;
   estado: string;
@@ -33,7 +33,7 @@ export type RutaMapa = Ruta & { trazado_polyline: string };
 
 const EMPRESA = "companies(nombre,tipo,flota_colores,flota_descripcion,flota_confianza)";
 const HORARIO = "schedules(primera_salida,ultima_salida,frecuencia_pico_min,frecuencia_valle_min)";
-const BASE = `id,codigo,nombre,terminal,recorrido,longitud_km,tarifa_cop,estado,trazado_fuente,${EMPRESA},${HORARIO}`;
+const BASE = `id,codigo,nombre,terminal,resumen,longitud_km,tarifa_cop,estado,trazado_fuente,${EMPRESA},${HORARIO}`;
 
 const ordenar = <T extends { codigo: string }>(l: T[]) => l.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
 

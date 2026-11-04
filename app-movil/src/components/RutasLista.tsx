@@ -61,7 +61,6 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
         const e = estadoAhora(r);
         const s0 = r.schedules[0];
         const abre = abierta === r.id;
-        const porVerificar = r.estado === "por_verificar";
         const conTrazado = !!r.trazado_fuente;
         return (
           <Aparece delay={Math.min(index, 6) * 50}>
@@ -78,15 +77,14 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
                       {r.companies?.nombre}
                     </Txt>
                   </View>
-                  {porVerificar ? (
-                    <Txt style={{ color: C.yellow, fontFamily: F.bold, fontSize: 13 }}>{conTrazado ? "Por verificar · trazado aproximado, sin horario" : "Por verificar · sin horario ni trazado"}</Txt>
+                  {!s0 ? (
+                    <Txt v="suave" style={{ fontFamily: F.bold, fontSize: 13 }}>Horario aún no publicado</Txt>
                   ) : (
                     <Txt style={{ color: e.operando ? "#4ade80" : C.muted, fontFamily: F.bold, fontSize: 13 }}>
                       {e.operando ? `● En servicio${e.frecuencia ? ` · cada ~${e.frecuencia} min` : ""}` : "Fuera de servicio"}
                     </Txt>
                   )}
                 </View>
-                {!!r.tarifa_cop && <Txt v="fuerte" style={{ fontSize: 17 }}>{`$${r.tarifa_cop.toLocaleString("es-CO")}`}</Txt>}
               </Pressable>
 
               {abre && (
@@ -102,14 +100,13 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
                       {!!r.terminal && <Dato k="Terminal" v={r.terminal} />}
                     </View>
                   )}
-                  {!!r.recorrido && <Txt v="suave">{r.recorrido}</Txt>}
-                  {porVerificar && (
-                    <Txt v="suave">
-                      {conTrazado
-                        ? "El trazado es aproximado (por carretera) y el horario no está confirmado. Aparece como fuera de servicio en los viajes."
-                        : "Esta ruta aparece en fuentes públicas pero aún no está confirmada por la autoridad de transporte. No se usa para calcular viajes."}
-                    </Txt>
+                  {!!r.tarifa_cop && (
+                    <View style={[s.datos, { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }]}>
+                      <Txt v="suave">Pasaje</Txt>
+                      <Txt v="titulo" style={{ fontSize: 24 }}>{`$${r.tarifa_cop.toLocaleString("es-CO")}`}</Txt>
+                    </View>
                   )}
+                  {!!r.resumen && <Txt style={{ fontSize: 16, lineHeight: 24 }}>{r.resumen}</Txt>}
                   {conTrazado && <Boton texto="Ver su recorrido en el mapa" onPress={() => router.navigate({ pathname: "/mapa", params: { ruta: r.id } })} />}
                 </View>
               )}

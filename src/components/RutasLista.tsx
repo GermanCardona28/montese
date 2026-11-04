@@ -47,7 +47,6 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
           const e = estadoAhora(r);
           const s = r.schedules[0];
           const open = abierta === r.id;
-          const porVerificar = r.estado === "por_verificar";
           const conTrazado = !!r.trazado_fuente;
           return (
             <li key={r.id} className="rise" style={{ ["--d" as string]: `${Math.min(i, 8) * 45}ms` }}>
@@ -60,8 +59,8 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                       <BusColor empresa={r.companies} size={34} />
                       <span className="truncate">{r.companies?.nombre}</span>
                     </span>
-                    {porVerificar ? (
-                      <span className="mt-2 block text-sm font-semibold text-yellow">{conTrazado ? "Por verificar · trazado aproximado, sin horario" : "Por verificar · sin horario ni trazado"}</span>
+                    {!s ? (
+                      <span className="mt-2 block text-sm font-semibold text-muted">Horario aún no publicado</span>
                     ) : (
                       <span className={`mt-2 flex items-center gap-2 text-sm font-semibold ${e.operando ? "text-[#4ade80]" : "text-muted"}`}>
                         <span className={`inline-block h-2 w-2 rounded-full bg-current ${e.operando ? "punto-vivo" : ""}`} />
@@ -69,7 +68,6 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                       </span>
                     )}
                   </span>
-                  <span className="text-right text-lg font-bold">{r.tarifa_cop ? `$${r.tarifa_cop.toLocaleString("es-CO")}` : ""}</span>
                 </button>
 
                 {open && (
@@ -90,12 +88,13 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                         {r.terminal && (<><dt className="text-muted">Terminal</dt><dd className="font-semibold">{r.terminal}</dd></>)}
                       </dl>
                     )}
-                    {r.recorrido && <p className="mt-3 text-[0.95rem] leading-snug text-muted">{r.recorrido}</p>}
-                    {porVerificar && (
-                      <p className="mt-3 text-[0.95rem] leading-snug text-muted">
-                        {conTrazado ? "El trazado es aproximado (por carretera) y el horario no está confirmado. Aparece como fuera de servicio en los viajes." : "Esta ruta aparece en fuentes públicas pero aún no está confirmada por la autoridad de transporte. No se usa para calcular viajes."}
+                    {!!r.tarifa_cop && (
+                      <p className="mt-3 flex items-baseline justify-between gap-3 rounded-[var(--r-sm)] bg-bg px-4 py-3">
+                        <span className="text-muted">Pasaje</span>
+                        <span className="text-2xl font-extrabold">{`$${r.tarifa_cop.toLocaleString("es-CO")}`}</span>
                       </p>
                     )}
+                    {r.resumen && <p className="mt-3 text-[1.05rem] leading-relaxed">{r.resumen}</p>}
                     {conTrazado && (
                       <Link href={`/mapa/?ruta=${r.id}`} className="btn btn-yellow mt-4 w-full">
                         Ver su recorrido en el mapa
