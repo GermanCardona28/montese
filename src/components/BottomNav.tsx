@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/Logo";
+import { toquePestana } from "@/lib/reinicio";
 
 const tabs = [
   { href: "/", label: "Inicio" },
@@ -29,6 +30,7 @@ export function TopBar() {
               <Link
                 key={t.href}
                 href={t.href}
+                onClick={() => toquePestana(t.href)}
                 className={`rounded-[var(--r)] px-5 py-2.5 text-base font-semibold transition-colors ${
                   activa(pathname, t.href) ? "bg-yellow text-[#111]" : "text-white hover:bg-surface-2"
                 }`}
@@ -56,6 +58,7 @@ export default function BottomNav() {
             <li key={t.href} className="flex-1">
               <Link
                 href={t.href}
+                onClick={() => toquePestana(t.href)}
                 className={`block rounded-[var(--r)] py-3 text-center text-[0.8rem] font-semibold transition-colors ${
                   activa(pathname, t.href) ? "bg-yellow text-[#111]" : "text-muted active:bg-surface-2"
                 }`}

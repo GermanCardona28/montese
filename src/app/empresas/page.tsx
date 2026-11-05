@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BusColor, FlotaTexto } from "@/components/Flota";
 import RutasLista from "@/components/RutasLista";
+import { useReinicioPestana } from "@/lib/reinicio";
 import type { EmpresaFlota } from "@/lib/rutas";
 
 type Empresa = EmpresaFlota & { id: string; routes: { count: number }[] };
@@ -11,6 +12,10 @@ type Empresa = EmpresaFlota & { id: string; routes: { count: number }[] };
 export default function Empresas() {
   const [empresas, setEmpresas] = useState<Empresa[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
+  useReinicioPestana("/empresas/", () => {
+    setSel(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   useEffect(() => {
     createClient()

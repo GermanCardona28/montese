@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import MapaAuto from "@/components/MapaAuto";
 import { BusColor, FlotaTexto } from "@/components/Flota";
-import { cargarRutasMapa, hhmm, type RutaMapa } from "@/lib/rutas";
+import { useReinicioPestana } from "@/lib/reinicio";
+import { cargarRutasMapa, flotaDe, hhmm, type RutaMapa } from "@/lib/rutas";
 
 export default function Mapa() {
   const [rutas, setRutas] = useState<RutaMapa[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  useReinicioPestana("/mapa/", () => setSel(null));
 
   useEffect(() => {
     cargarRutasMapa()
@@ -50,9 +52,9 @@ export default function Mapa() {
               </button>
             </div>
             <div className="mt-3 flex items-center gap-3 rounded-[var(--r-sm)] bg-bg p-3">
-              <BusColor empresa={elegida.companies} size={64} />
+              <BusColor empresa={flotaDe(elegida)} size={64} />
               <p className="text-[0.95rem] leading-snug">
-                Busca un bus <FlotaTexto empresa={elegida.companies} className="font-semibold lowercase" />
+                Busca un bus <FlotaTexto empresa={flotaDe(elegida)} className="font-semibold lowercase" />
               </p>
             </div>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[0.95rem]">

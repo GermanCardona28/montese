@@ -1,3 +1,4 @@
+import { ESTACIONES } from "@/lib/estaciones";
 import { decodificarPolilinea, esHoraPico, estadoAhora, type RutaMapa } from "@/lib/rutas";
 
 export type LngLat = [number, number];
@@ -120,6 +121,12 @@ export type PasoCaminar = {
   metros: number;
   min: number;
   hacia: "ruta" | "transbordo" | "destino";
+  /** Trazado real a pie (calles y cruces), cuando ya se consultó. */
+  camino?: LngLat[];
+  /** El tiempo y la distancia ya son los de un recorrido peatonal real, no una estimación en línea recta. */
+  real?: boolean;
+  /** Estación de Metrolínea donde se hace el transbordo. */
+  estacion?: string;
 };
 
 export type PasoBus = {
@@ -133,6 +140,9 @@ export type PasoBus = {
   frecuencia: number | null;
   enServicio: boolean;
   tramo: LngLat[];
+  /** Estación de Metrolínea junto al punto donde subes o bajas. */
+  estacionSube?: string;
+  estacionBaja?: string;
 };
 
 export type Paso = PasoCaminar | PasoBus;
@@ -155,6 +165,18 @@ const CAMINAR_M_MIN = 75; // 4,5 km/h
 const BUS_KMH = { pico: 11, valle: 16 };
 const MAX_CAMINATA_TRANSBORDO = 300; // m entre dos rutas para transbordar
 const PENALIZA_TRANSBORDO = 5; // min de molestia por cada transbordo
+const RADIO_ESTACION = 200; // m: una ruta "entra" a la estación si su trazado pasa a menos de esto
+const BONO_ESTACION = 3; // min: transbordar en una estación es más claro y seguro que en la calle
+
+/** Estación de Metrolínea cercana a un punto, si la hay. */
+export function estacionCerca(p: LngLat, radio = 220): string | undefined {
+  let mejor: { n: string; d: number } | null = null;
+  for (const e of ESTACIONES) {
+    const d = distancia(p, e.pos);
+    if (d <= radio && (!mejor || d < mejor.d)) mejor = { n: e.nombre, d };
+  }
+  return mejor?.n;
+}
 
 export type Opciones = { ahora?: Date; factorTrafico?: number };
 
@@ -208,7 +230,7 @@ export function planificar(rutas: RutaMapa[], a: LngLat, b: LngLat, op: Opciones
         id: `d-${ruta.id}`,
         pasos: [
           { tipo: "caminar", desde: a, hasta: x.punto, metros: Math.round(x.d), min: w1, hacia: "ruta" },
-          { tipo: "bus", ruta, subida: x.punto, bajada: y.punto, metros: y.s - x.s, minEspera, minViaje, frecuencia: est.frecuencia, enServicio: est.operando, tramo: tramo(l, x.s, y.s) },
+          { tipo: "bus", ruta, subida: x.punto, bajada: y.punto, metros: y.s - x.s, minEspera, minViaje, frecuencia: est.frecuencia, enServicio: est.operando, tramo: tramo(l, x.s, y.s), estacionSube: estacionCerca(x.punto), estacionBaja: estacionCerca(y.punto) },
           { tipo: "caminar", desde: y.punto, hasta: b, metros: Math.round(y.d), min: w2, hacia: "destino" },
         ],
         minTotal: w1 + minEspera + minViaje + w2,
@@ -235,7 +257,7 @@ export function planificar(rutas: RutaMapa[], a: LngLat, b: LngLat, op: Opciones
           for (const y of r2.cb) if (y.s > s2 + 50 && (!b2 || (y.s - s2) / mMin + y.d / CAMINAR_M_MIN < (b2.s - s2) / mMin + b2.d / CAMINAR_M_MIN)) b2 = y;
           return b2;
         };
-        let mejor: { x: Candidato; s1: number; p1: LngLat; s2: number; p2: LngLat; y: Candidato; walkT: number; costo: number } | null = null;
+        let mejor: { x: Candidato; s1: number; p1: LngLat; s2: number; p2: LngLat; y: Candidato; walkT: number; costo: number; estacion?: string } | null = null;
         const m1 = muestras(r1.ruta);
         for (const x of r1.ca) {
           for (const q1 of m1.pts) {
@@ -251,8 +273,27 @@ export function planificar(rutas: RutaMapa[], a: LngLat, b: LngLat, op: Opciones
               if (!mejor || costo < mejor.costo) mejor = { x, s1: q1.s, p1: q1.p, s2: q2.s, p2: q2.p, y, walkT: w, costo };
             }
           }
+          // Estaciones de Metrolínea: si las dos rutas entran a la misma estación, ahí se puede cambiar de bus
+          for (const est of ESTACIONES) {
+            const e1 = candidatos(r1.l, est.pos, RADIO_ESTACION);
+            if (!e1.length) continue;
+            const e2 = candidatos(r2.l, est.pos, RADIO_ESTACION);
+            if (!e2.length) continue;
+            for (const c1 of e1) {
+              if (c1.s <= x.s + 200) continue;
+              for (const c2 of e2) {
+                const y = sal(c2.s);
+                if (!y) continue;
+                const w = c1.d + c2.d + 40; // 40 m para moverse dentro de la estación
+                const costo =
+                  x.d / CAMINAR_M_MIN + espera(r1.est.frecuencia) + (c1.s - x.s) / mMin + w / CAMINAR_M_MIN + espera(r2.est.frecuencia) + (y.s - c2.s) / mMin + y.d / CAMINAR_M_MIN - BONO_ESTACION;
+                if (!mejor || costo < mejor.costo) mejor = { x, s1: c1.s, p1: c1.punto, s2: c2.s, p2: c2.punto, y, walkT: w, costo, estacion: est.nombre };
+              }
+            }
+          }
         }
         if (!mejor) continue;
+        const estacionTransbordo = mejor.estacion ?? estacionCerca(mejor.p1, 250);
         const { x, y } = mejor;
         const w1 = Math.max(1, Math.round(x.d / CAMINAR_M_MIN)), wt = Math.max(1, Math.round(mejor.walkT / CAMINAR_M_MIN)), w2 = Math.max(1, Math.round(y.d / CAMINAR_M_MIN));
         const v1 = Math.max(1, Math.round((mejor.s1 - x.s) / mMin)), v2 = Math.max(1, Math.round((y.s - mejor.s2) / mMin));
@@ -261,9 +302,9 @@ export function planificar(rutas: RutaMapa[], a: LngLat, b: LngLat, op: Opciones
           id: `t-${r1.ruta.id}-${r2.ruta.id}`,
           pasos: [
             { tipo: "caminar", desde: a, hasta: x.punto, metros: Math.round(x.d), min: w1, hacia: "ruta" },
-            { tipo: "bus", ruta: r1.ruta, subida: x.punto, bajada: mejor.p1, metros: mejor.s1 - x.s, minEspera: e1, minViaje: v1, frecuencia: r1.est.frecuencia, enServicio: r1.est.operando, tramo: tramo(r1.l, x.s, mejor.s1) },
-            { tipo: "caminar", desde: mejor.p1, hasta: mejor.p2, metros: Math.round(mejor.walkT), min: wt, hacia: "transbordo" },
-            { tipo: "bus", ruta: r2.ruta, subida: mejor.p2, bajada: y.punto, metros: y.s - mejor.s2, minEspera: e2, minViaje: v2, frecuencia: r2.est.frecuencia, enServicio: r2.est.operando, tramo: tramo(r2.l, mejor.s2, y.s) },
+            { tipo: "bus", ruta: r1.ruta, subida: x.punto, bajada: mejor.p1, metros: mejor.s1 - x.s, minEspera: e1, minViaje: v1, frecuencia: r1.est.frecuencia, enServicio: r1.est.operando, tramo: tramo(r1.l, x.s, mejor.s1), estacionSube: estacionCerca(x.punto), estacionBaja: estacionTransbordo },
+            { tipo: "caminar", desde: mejor.p1, hasta: mejor.p2, metros: Math.round(mejor.walkT), min: wt, hacia: "transbordo", estacion: estacionTransbordo },
+            { tipo: "bus", ruta: r2.ruta, subida: mejor.p2, bajada: y.punto, metros: y.s - mejor.s2, minEspera: e2, minViaje: v2, frecuencia: r2.est.frecuencia, enServicio: r2.est.operando, tramo: tramo(r2.l, mejor.s2, y.s), estacionSube: estacionTransbordo, estacionBaja: estacionCerca(y.punto) },
             { tipo: "caminar", desde: y.punto, hasta: b, metros: Math.round(y.d), min: w2, hacia: "destino" },
           ],
           minTotal: w1 + e1 + v1 + wt + e2 + v2 + w2,
@@ -300,7 +341,40 @@ export function planificar(rutas: RutaMapa[], a: LngLat, b: LngLat, op: Opciones
       if (menos && !menos.etiquetas.length) menos.etiquetas.push("Menos caminata");
     }
   }
-  return planes.slice(0, 6);
+  return planes.slice(0, 8);
+}
+
+/** Vuelve a calcular los totales de un plan cuando cambia el tiempo de alguna caminata. */
+export function recalcular(p: Plan): Plan {
+  const caminar = p.pasos.filter((x): x is PasoCaminar => x.tipo === "caminar");
+  const buses = p.pasos.filter((x): x is PasoBus => x.tipo === "bus");
+  const minCaminar = caminar.reduce((s, x) => s + x.min, 0);
+  const ult = [...p.pasos].reverse().find((x): x is PasoCaminar => x.tipo === "caminar" && x.hacia === "destino");
+  return {
+    ...p,
+    minCaminar,
+    metrosCaminados: Math.round(caminar.reduce((s, x) => s + x.metros, 0)),
+    minTotal: minCaminar + buses.reduce((s, x) => s + x.minEspera + x.minViaje, 0),
+    ultimaCaminata: ult ? ult.metros : p.ultimaCaminata,
+  };
+}
+
+/** Ordena y etiqueta los planes (más rápida, te deja más cerca, menos caminata). */
+export function ordenarYEtiquetar(planes: Plan[]): Plan[] {
+  const lista = planes.map((p) => ({ ...p, etiquetas: [] as string[] }));
+  const puntaje = (p: Plan) => p.minTotal + p.transbordos * PENALIZA_TRANSBORDO;
+  lista.sort((p, q) => Number(q.enServicio) - Number(p.enServicio) || puntaje(p) - puntaje(q));
+  const ok = lista.filter((p) => p.enServicio);
+  if (ok.length) {
+    ok[0].etiquetas.push("Más rápida");
+    if (ok.length > 1) {
+      const cerca = [...ok].filter((p) => p.id !== "caminar").sort((p, q) => p.ultimaCaminata - q.ultimaCaminata)[0];
+      if (cerca && !cerca.etiquetas.length) cerca.etiquetas.push("Te deja más cerca");
+      const menos = [...ok].filter((p) => p.id !== "caminar").sort((p, q) => p.metrosCaminados - q.metrosCaminados)[0];
+      if (menos && !menos.etiquetas.length) menos.etiquetas.push("Menos caminata");
+    }
+  }
+  return lista;
 }
 
 /** Pasaje total de un plan, o null si alguna ruta no tiene tarifa. */

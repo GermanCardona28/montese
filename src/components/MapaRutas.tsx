@@ -120,7 +120,7 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "
         type: "line",
         source: src,
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": colorRuta(r), "line-width": 3.5, "line-opacity": 0.85 },
+        paint: { "line-color": colorRuta(r), "line-width": 3.5, "line-opacity": 0.75 },
       });
       // capa ancha e invisible para que se pueda tocar la ruta con el dedo
       map.addLayer({
@@ -148,7 +148,7 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "
       if (!map.getLayer(id)) continue;
       const activa = selId === r.id;
       map.setPaintProperty(id, "line-width", activa ? 7 : 3.5);
-      map.setPaintProperty(id, "line-opacity", selId || enViaje ? (activa ? 1 : 0.14) : 0.85);
+      map.setPaintProperty(id, "line-opacity", selId || enViaje ? (activa ? 1 : 0.14) : 0.75);
       if (activa) map.moveLayer(id);
     }
 
@@ -174,7 +174,7 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "
         type: "geojson",
         data: {
           type: "FeatureCollection",
-          features: camina.map((p) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [p.desde, p.hasta] } })),
+          features: camina.map((p) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: p.camino ?? [p.desde, p.hasta] } })),
         },
       });
       map.addLayer({ id: "viaje-camina", type: "line", source: "viaje-camina", paint: { "line-color": "#191919", "line-width": 4.5, "line-dasharray": [1, 1.6] } });

@@ -1,16 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RutasLista from "@/components/RutasLista";
 import { BusColor, textoFlota } from "@/components/Marca";
 import { Aparece, Boton, Esqueleto, Titulo, Txt } from "@/components/ui";
 import { cargarEmpresas, type EmpresaResumen } from "@/lib/rutas";
+import { useReinicioPestana } from "@/lib/reinicio";
 import { C, F, R } from "@/theme";
 
 export default function Empresas() {
   const { top } = useSafeAreaInsets();
   const [empresas, setEmpresas] = useState<EmpresaResumen[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
+  const lista = useRef<ComponentRef<typeof ScrollView>>(null);
+  useReinicioPestana("empresas", () => {
+    setSel(null);
+    lista.current?.scrollTo({ y: 0, animated: true });
+  });
 
   useEffect(() => {
     cargarEmpresas().then(setEmpresas).catch(() => setEmpresas([]));
@@ -35,7 +41,7 @@ export default function Empresas() {
   const sinRutas = (empresas ?? []).filter((e) => !(e.routes[0]?.count ?? 0));
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: top + 24, paddingBottom: 32, gap: 10 }}>
+    <ScrollView ref={lista} style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: top + 24, paddingBottom: 32, gap: 10 }}>
       <Titulo texto="Empresas" sub="Quién opera cada ruta y de qué color son sus buses." />
       <View style={{ height: 10 }} />
       {!empresas && (

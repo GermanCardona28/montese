@@ -8,7 +8,7 @@ export default function Rutas() {
   const { top } = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: top + 12 }}>
-      <RutasLista cabecera={<Titulo texto="Rutas" sub="Todas las rutas de bus del área metropolitana, con su horario, frecuencia y pasaje." />} />
+      <RutasLista pestana="rutas" cabecera={<Titulo texto="Rutas" sub="Todas las rutas de bus del área metropolitana, con su horario, frecuencia y pasaje." />} />
     </View>
   );
 }

@@ -9,9 +9,12 @@ import { C, F, R } from "@/theme";
 type Campo = "a" | "b";
 
 const CLAVE_RECIENTES = "montese.recientes";
-const ATAJOS = ["UIS", "Cabecera", "Cañaveral", "Centro", "Terminal de Transportes", "Floridablanca", "Girón", "Piedecuesta"];
+const CLAVE_GUARDADOS = "montese.guardados";
 
-/** Planificador A→B: busca sitios, usa tu ubicación y recuerda tus destinos recientes. */
+/** Un lugar con el nombre que le puso la persona: "Casa", "Trabajo", "Casa de mi amigo"… */
+type Guardado = { nombre: string; lugar: Lugar };
+
+/** Planificador A→B: busca sitios, usa tu ubicación, recuerda tus destinos recientes y guarda lugares con tu propio nombre. */
 export default function Planificador() {
   const [lugar, setLugar] = useState<Record<Campo, Lugar | null>>({ a: null, b: null });
   const [texto, setTexto] = useState<Record<Campo, string>>({ a: "", b: "" });
@@ -20,12 +23,18 @@ export default function Planificador() {
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [recientes, setRecientes] = useState<Lugar[]>([]);
+  const [guardados, setGuardados] = useState<Guardado[]>([]);
+  const [nombrando, setNombrando] = useState<Campo | null>(null);
+  const [alias, setAlias] = useState("");
   const abort = useRef<AbortController | null>(null);
 
   // Menos esfuerzo: si ya hay permiso, el punto de partida es tu ubicación; y se recuerdan los destinos recientes
   useEffect(() => {
     AsyncStorage.getItem(CLAVE_RECIENTES)
       .then((v) => v && setRecientes(JSON.parse(v)))
+      .catch(() => {});
+    AsyncStorage.getItem(CLAVE_GUARDADOS)
+      .then((v) => v && setGuardados(JSON.parse(v)))
       .catch(() => {});
     miUbicacionSiHayPermiso()
       .then((l) => {
@@ -86,17 +95,44 @@ export default function Planificador() {
     }
   };
 
-  const atajo = async (q: string) => {
-    const c: Campo = lugar.a && !lugar.b ? "b" : activo;
+  // Lupa del teclado: busca en el momento, sin esperar la pausa de escritura
+  const buscarYa = async (c: Campo) => {
+    const q = texto[c].trim();
+    if (q.length < 2) return;
+    setActivo(c);
+    abort.current?.abort();
+    abort.current = new AbortController();
+    setBuscando(true);
     setAviso("");
     try {
-      const r = await buscarLugar(q);
-      if (r[0]) await elegir(c, r[0]);
-      else setAviso("No encontré ese sitio.");
-    } catch {
-      setAviso("No pude buscar ahora mismo.");
+      const r = await buscarLugar(q, abort.current.signal);
+      setSugerencias(r);
+      if (!r.length) setAviso("No encontré ese sitio en el área metropolitana. Prueba con el barrio o un lugar conocido.");
+      else if (r.length === 1) await elegir(c, r[0]);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setAviso("No pude buscar ahora mismo. Revisa tu conexión.");
+    } finally {
+      setBuscando(false);
     }
   };
+
+  // Lugares guardados con nombre propio
+  const persistir = (g: Guardado[]) => {
+    setGuardados(g);
+    AsyncStorage.setItem(CLAVE_GUARDADOS, JSON.stringify(g)).catch(() => {});
+  };
+  const guardar = (c: Campo) => {
+    const l = lugar[c];
+    const n = alias.trim();
+    if (!l || !n) return;
+    persistir([{ nombre: n, lugar: { ...l, nombre: n } }, ...guardados.filter((g) => g.nombre.toLowerCase() !== n.toLowerCase())].slice(0, 12));
+    setNombrando(null);
+    setAlias("");
+    setAviso(`Guardé este lugar como “${n}”.`);
+  };
+  const quitar = (n: string) => persistir(guardados.filter((g) => g.nombre !== n));
+  const usarGuardado = (g: Guardado) => elegir(lugar.a ? "b" : activo, { ...g.lugar, nombre: g.nombre });
+  const yaGuardado = (l: Lugar) => guardados.some((g) => Math.abs(g.lugar.pos[0] - l.pos[0]) < 1e-4 && Math.abs(g.lugar.pos[1] - l.pos[1]) < 1e-4);
 
   const invertir = () => {
     setLugar((p) => ({ a: p.b, b: p.a }));
@@ -128,6 +164,7 @@ export default function Planificador() {
         accessibilityLabel={c === "a" ? "Punto de partida" : "Destino"}
         autoCorrect={false}
         returnKeyType="search"
+        onSubmitEditing={() => buscarYa(c)}
       />
     </View>
   );
@@ -159,6 +196,57 @@ export default function Planificador() {
         </Pressable>
       </View>
 
+      {guardados.length > 0 && (
+        <View style={s.chips}>
+          {guardados.map((g) => (
+            <View key={g.nombre} style={s.chipGuardado}>
+              <Pressable onPress={() => usarGuardado(g)} accessibilityRole="button" accessibilityLabel={`Usar ${g.nombre}`}>
+                <Txt style={[s.chipTxt, { color: "#fff" }]}>★ {g.nombre}</Txt>
+              </Pressable>
+              <Pressable onPress={() => quitar(g.nombre)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Quitar ${g.nombre}`}>
+                <Txt style={[s.chipTxt, { color: "#ffffffaa" }]}>✕</Txt>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {(["a", "b"] as Campo[]).map((c) => {
+        const l = lugar[c];
+        if (!l || yaGuardado(l) || nombrando) return null;
+        return (
+          <View key={c} style={s.chips}>
+            <Pressable onPress={() => { setNombrando(c); setAlias(""); }} style={s.chipClaro} accessibilityRole="button">
+              <Txt style={s.chipTxt}>★ Guardar {c === "a" ? "el punto A" : "el punto B"} con un nombre</Txt>
+            </Pressable>
+          </View>
+        );
+      })}
+
+      {nombrando && (
+        <View style={{ marginTop: 14, gap: 10 }}>
+          <Txt style={{ color: C.dark, fontFamily: F.semi, fontSize: 14 }}>¿Cómo quieres llamar a “{lugar[nombrando]?.nombre}”?</Txt>
+          <TextInput
+            style={s.campo}
+            value={alias}
+            onChangeText={setAlias}
+            placeholder="Casa, Trabajo, Casa de mi amigo…"
+            placeholderTextColor="#6b6b6b"
+            maxLength={30}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={() => guardar(nombrando)}
+            accessibilityLabel="Nombre del lugar"
+          />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Boton texto="Guardar" variante="oscuro" chico disabled={!alias.trim()} onPress={() => guardar(nombrando)} />
+            <Pressable onPress={() => { setNombrando(null); setAlias(""); }} style={s.chipClaro} accessibilityRole="button">
+              <Txt style={s.chipTxt}>Cancelar</Txt>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {recientes.length > 0 && (
         <View style={s.chips}>
           {recientes.map((r) => (
@@ -168,14 +256,6 @@ export default function Planificador() {
           ))}
         </View>
       )}
-
-      <View style={s.chips}>
-        {ATAJOS.map((q) => (
-          <Pressable key={q} onPress={() => atajo(q)} style={s.chipClaro} accessibilityRole="button">
-            <Txt style={s.chipTxt}>{q}</Txt>
-          </Pressable>
-        ))}
-      </View>
 
       <Boton texto="Ver cómo llegar →" variante="oscuro" disabled={!lugar.a || !lugar.b} onPress={ir} style={{ marginTop: 18 }} />
     </View>
@@ -193,6 +273,7 @@ const s = StyleSheet.create({
   item: { paddingHorizontal: 20, paddingVertical: 12 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   chipClaro: { backgroundColor: "#0000001a", borderRadius: R, paddingHorizontal: 16, paddingVertical: 10 },
+  chipGuardado: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.green, borderRadius: R, paddingHorizontal: 16, paddingVertical: 10 },
   chipOscuro: { backgroundColor: C.dark, borderRadius: R, paddingHorizontal: 16, paddingVertical: 10 },
   chipTxt: { color: C.dark, fontFamily: F.semi, fontSize: 14 },
 });

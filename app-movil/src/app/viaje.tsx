@@ -5,10 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapaRutas from "@/components/MapaRutas";
 import { BuscaBus, Cartel } from "@/components/Marca";
 import { Aparece, Boton, Esqueleto, Txt } from "@/components/ui";
+import { conCaminataReal } from "@/lib/caminata";
 import { pasajeTotal, planificar, type Paso, type Plan } from "@/lib/geo";
 import { factorTrafico, hayGoogle, type Trafico } from "@/lib/google";
 import { decodificarLugar } from "@/lib/lugares";
-import { cargarIncidentes, cargarRutasMapa, esHoraPico, hhmm, type Incidente, type RutaMapa } from "@/lib/rutas";
+import { cargarIncidentes, cargarRutasMapa, esHoraPico, flotaDe, hhmm, type Incidente, type RutaMapa } from "@/lib/rutas";
 import { C, F, R, Rs } from "@/theme";
 
 const hora = (d: Date) => d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
@@ -47,7 +48,7 @@ function Pasos({ plan, ahora }: { plan: Plan; ahora: Date }) {
         const inicio = reloj;
         if (p.tipo === "caminar") {
           reloj += p.min * 60000;
-          const destino = p.hacia === "ruta" ? "hasta donde pasa el bus" : p.hacia === "transbordo" ? "hasta el siguiente bus" : "hasta tu destino";
+          const destino = p.hacia === "ruta" ? "hasta donde pasa el bus" : p.hacia === "transbordo" ? (p.estacion ? `dentro de la ${p.estacion} hasta el siguiente bus` : "hasta el siguiente bus") : "hasta tu destino";
           return (
             <View key={i} style={s.paso}>
               <View style={s.icono}>
@@ -70,11 +71,12 @@ function Pasos({ plan, ahora }: { plan: Plan; ahora: Date }) {
             </View>
             <View style={{ flex: 1, gap: 8 }}>
               <Txt v="fuerte">
-                Sube a la ruta {p.ruta.codigo} <Txt v="suave">· sales ~ {hora(new Date(inicio + p.minEspera * 60000))}</Txt>
+                Sube a la ruta {p.ruta.codigo}
+                {p.estacionSube ? ` en la ${p.estacionSube}` : ""} <Txt v="suave">· sales ~ {hora(new Date(inicio + p.minEspera * 60000))}</Txt>
               </Txt>
-              <BuscaBus empresa={p.ruta.companies} />
+              <BuscaBus empresa={flotaDe(p.ruta)} />
               <Txt v="suave">
-                Espera ~{p.minEspera} min{p.frecuencia ? ` (pasa cada ~${p.frecuencia} min)` : ""}. Viaja {p.minViaje} min · {dist(p.metros)} y bájate en el punto marcado en el mapa.
+                Espera ~{p.minEspera} min{p.frecuencia ? ` (pasa cada ~${p.frecuencia} min)` : ""}. Viaja {p.minViaje} min · {dist(p.metros)} y bájate {p.estacionBaja ? `en la ${p.estacionBaja}` : "en el punto marcado en el mapa"}.
               </Txt>
               {!p.enServicio && p.ruta.schedules[0] && (
                 <Txt style={{ color: C.yellow, fontFamily: F.semi, fontSize: 14 }}>Fuera de servicio ahora. Primer bus a las {hhmm(p.ruta.schedules[0].primera_salida)}.</Txt>
@@ -115,7 +117,21 @@ export default function Viaje() {
     if (a && b && hayGoogle) factorTrafico(a.pos, b.pos).then(setTrafico).catch(() => {});
   }, [a, b]);
 
-  const planes = useMemo(() => (rutas && a && b ? planificar(rutas, a.pos, b.pos, { ahora, factorTrafico: trafico?.factor }) : null), [rutas, a, b, ahora, trafico]);
+  const base = useMemo(() => (rutas && a && b ? planificar(rutas, a.pos, b.pos, { ahora, factorTrafico: trafico?.factor }) : null), [rutas, a, b, ahora, trafico]);
+
+  // Caminata real: reemplaza el cálculo en línea recta por el recorrido peatonal por calles
+  const [conReales, setConReales] = useState<{ de: Plan[]; planes: Plan[] } | null>(null);
+  useEffect(() => {
+    if (!base?.length) return;
+    let vigente = true;
+    conCaminataReal(base).then((p) => vigente && setConReales({ de: base, planes: p }));
+    return () => {
+      vigente = false;
+    };
+  }, [base]);
+  const reales = conReales && conReales.de === base ? conReales.planes : null;
+  const planes = reales ?? (base ? base.slice(0, 6) : null);
+  const ajustando = !!base?.length && !reales;
 
   useEffect(() => {
     if (planes?.length) setSel((x) => x ?? planes[0].id);
@@ -153,7 +169,8 @@ export default function Viaje() {
           <Txt v="suave">
             {pico ? "Hora pico: los buses van más lentos." : "Hora valle: la circulación es más fluida."}{" "}
             {incidentes.length ? `Hay ${incidentes.length} reporte${incidentes.length > 1 ? "s" : ""} de trancones o cierres.` : "Sin trancones reportados."}{" "}
-            {trafico ? `Tráfico ahora: ${trafico.nivel}.` : "Tiempos estimados; sin tráfico en vivo."}
+            {trafico ? `Tráfico ahora: ${trafico.nivel}.` : "Tiempos estimados; sin tráfico en vivo."}{" "}
+            {ajustando ? "Ajustando el tiempo a pie por las calles reales…" : "El tiempo a pie sigue las calles por donde se puede caminar."}
           </Txt>
         </View>
 

@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MapaAuto from "@/components/MapaAuto";
 import { BusColor, FlotaTexto } from "@/components/Flota";
+import { conCaminataReal } from "@/lib/caminata";
 import { pasajeTotal, planificar, type Paso, type Plan } from "@/lib/geo";
 import { factorTrafico, hayGoogle, type Trafico } from "@/lib/google";
 import { decodificarLugar, type Lugar } from "@/lib/lugares";
-import { cargarIncidentes, cargarRutasMapa, esHoraPico, hhmm, type Incidente, type RutaMapa } from "@/lib/rutas";
+import { cargarIncidentes, cargarRutasMapa, esHoraPico, flotaDe, hhmm, type Incidente, type RutaMapa } from "@/lib/rutas";
 
 const hora = (d: Date) => d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
 const dist = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`);
@@ -41,7 +42,7 @@ function Pasos({ plan, ahora }: { plan: Plan; ahora: Date }) {
     const inicio = new Date(reloj);
     if (p.tipo === "caminar") {
       reloj += p.min * 60000;
-      const destino = p.hacia === "ruta" ? "hasta donde pasa el bus" : p.hacia === "transbordo" ? "hasta el siguiente bus" : "hasta tu destino";
+      const destino = p.hacia === "ruta" ? "hasta donde pasa el bus" : p.hacia === "transbordo" ? (p.estacion ? `dentro de la ${p.estacion} hasta el siguiente bus` : "hasta el siguiente bus") : "hasta tu destino";
       return (
         <li key={i} className="relative pl-12">
           <span className="absolute left-0 top-0 grid h-9 w-9 place-items-center rounded-full bg-white/15">
@@ -62,17 +63,17 @@ function Pasos({ plan, ahora }: { plan: Plan; ahora: Date }) {
       <li key={i} className="relative pl-12">
         <span className="absolute left-0 top-0 cartel !min-w-9 !px-1.5 !py-1 !text-sm">{p.ruta.codigo}</span>
         <p className="font-semibold">
-          Sube a la ruta {p.ruta.codigo} <span className="font-normal text-muted">· sales ~ {hora(new Date(inicio.getTime() + p.minEspera * 60000))}</span>
+          Sube a la ruta {p.ruta.codigo}{p.estacionSube ? ` en la ${p.estacionSube}` : ""} <span className="font-normal text-muted">· sales ~ {hora(new Date(inicio.getTime() + p.minEspera * 60000))}</span>
         </p>
         <div className="mt-2 flex items-center gap-3 rounded-[var(--r-sm)] bg-bg p-3">
-          <BusColor empresa={p.ruta.companies} size={64} />
+          <BusColor empresa={flotaDe(p.ruta)} size={64} />
           <div className="min-w-0 text-[0.95rem] leading-snug">
-            <p className="font-semibold">Busca un bus <FlotaTexto empresa={p.ruta.companies} className="lowercase" /></p>
+            <p className="font-semibold">Busca un bus <FlotaTexto empresa={flotaDe(p.ruta)} className="lowercase" /></p>
             <p className="truncate text-muted">{p.ruta.companies?.nombre}</p>
           </div>
         </div>
         <p className="mt-2 text-muted">
-          Espera ~{p.minEspera} min{p.frecuencia ? ` (pasa cada ~${p.frecuencia} min)` : ""}. Viaja {p.minViaje} min · {dist(p.metros)} y bájate en el punto marcado en el mapa.
+          Espera ~{p.minEspera} min{p.frecuencia ? ` (pasa cada ~${p.frecuencia} min)` : ""}. Viaja {p.minViaje} min · {dist(p.metros)} y bájate {p.estacionBaja ? `en la ${p.estacionBaja}` : "en el punto marcado en el mapa"}.
         </p>
         {!p.enServicio && p.ruta.schedules[0] && <p className="mt-1 text-yellow">Fuera de servicio ahora. Primer bus a las {hhmm(p.ruta.schedules[0].primera_salida)}.</p>}
       </li>
@@ -112,7 +113,21 @@ export default function Viaje() {
     if (a && b && hayGoogle) factorTrafico(a.pos, b.pos).then(setTrafico).catch(() => {});
   }, [a, b]);
 
-  const planes = useMemo(() => (rutas && a && b ? planificar(rutas, a.pos, b.pos, { ahora, factorTrafico: trafico?.factor }) : null), [rutas, a, b, ahora, trafico]);
+  const base = useMemo(() => (rutas && a && b ? planificar(rutas, a.pos, b.pos, { ahora, factorTrafico: trafico?.factor }) : null), [rutas, a, b, ahora, trafico]);
+
+  // Caminata real: reemplaza el cálculo en línea recta por el recorrido peatonal por calles
+  const [conReales, setConReales] = useState<{ de: Plan[]; planes: Plan[] } | null>(null);
+  useEffect(() => {
+    if (!base?.length) return;
+    let vigente = true;
+    conCaminataReal(base).then((p) => vigente && setConReales({ de: base, planes: p }));
+    return () => {
+      vigente = false;
+    };
+  }, [base]);
+  const reales = conReales && conReales.de === base ? conReales.planes : null;
+  const planes = reales ?? (base ? base.slice(0, 6) : null);
+  const ajustando = !!base?.length && !reales;
 
   useEffect(() => {
     if (planes?.length) setSel((s) => s ?? planes[0].id);
@@ -149,7 +164,8 @@ export default function Viaje() {
         <p className="mt-4 rounded-[var(--r)] bg-surface p-4 text-[0.95rem] leading-snug text-muted">
           {pico ? "Hora pico: los buses van más lentos." : "Hora valle: la circulación es más fluida."}{" "}
           {incidentes.length ? `Hay ${incidentes.length} reporte${incidentes.length > 1 ? "s" : ""} de trancones o cierres.` : "Sin trancones reportados."}{" "}
-          {trafico ? `Tráfico ahora: ${trafico.nivel}.` : "Tiempos estimados; sin tráfico en vivo."}
+          {trafico ? `Tráfico ahora: ${trafico.nivel}.` : "Tiempos estimados; sin tráfico en vivo."}{" "}
+          {ajustando ? "Ajustando el tiempo a pie por las calles reales…" : "El tiempo a pie sigue las calles por donde se puede caminar."}
         </p>
 
         {error && <p className="mt-6 text-red">No se pudieron cargar las rutas. Revisa tu conexión.</p>}

@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { Aparece, Boton, Esqueleto, Txt } from "@/components/ui";
 import { BuscaBus, BusColor, Cartel } from "@/components/Marca";
-import { cargarRutasLista, esHoraPico, estadoAhora, hhmm, type Ruta } from "@/lib/rutas";
+import { useReinicioPestana } from "@/lib/reinicio";
+import { cargarRutasLista, esHoraPico, estadoAhora, flotaDe, hhmm, type Ruta } from "@/lib/rutas";
 import { C, F, R, Rs } from "@/theme";
 
 /** Lista de rutas con búsqueda y detalle desplegable. `cabecera` va arriba, dentro del mismo scroll. */
-export default function RutasLista({ empresa, cabecera }: { empresa?: string; cabecera?: ReactElement }) {
+export default function RutasLista({ empresa, cabecera, pestana }: { empresa?: string; cabecera?: ReactElement; pestana?: string }) {
   const [rutas, setRutas] = useState<Ruta[] | null>(null);
   const [error, setError] = useState(false);
   const [q, setQ] = useState("");
   const [abierta, setAbierta] = useState<string | null>(null);
+  const lista = useRef<FlatList<Ruta>>(null);
+  // Doble toque en la pestaña: cierra el detalle, limpia la búsqueda y sube al principio
+  useReinicioPestana(pestana ?? "-", () => {
+    if (!pestana) return;
+    setQ("");
+    setAbierta(null);
+    lista.current?.scrollToOffset({ offset: 0, animated: true });
+  });
 
   useEffect(() => {
     cargarRutasLista().then(setRutas).catch(() => setError(true));
@@ -51,6 +60,7 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
 
   return (
     <FlatList
+      ref={lista}
       data={filtradas}
       keyExtractor={(r) => r.id}
       keyboardShouldPersistTaps="handled"
@@ -72,7 +82,7 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
                     {r.nombre}
                   </Txt>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <BusColor empresa={r.companies} ancho={34} />
+                    <BusColor empresa={flotaDe(r)} ancho={34} />
                     <Txt v="suave" numberOfLines={1} style={{ flex: 1 }}>
                       {r.companies?.nombre}
                     </Txt>
@@ -89,14 +99,13 @@ export default function RutasLista({ empresa, cabecera }: { empresa?: string; ca
 
               {abre && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}>
-                  <BuscaBus empresa={r.companies} />
+                  <BuscaBus empresa={flotaDe(r)} />
                   {s0 && (
                     <View style={s.datos}>
                       <Dato k="Primer despacho" v={hhmm(s0.primera_salida)} />
                       <Dato k="Último despacho" v={hhmm(s0.ultima_salida)} />
                       <Dato k="Frecuencia pico" v={`${s0.frecuencia_pico_min} min`} />
                       <Dato k="Frecuencia valle" v={`${s0.frecuencia_valle_min} min`} />
-                      {!!r.longitud_km && <Dato k="Longitud" v={`${r.longitud_km} km`} />}
                       {!!r.terminal && <Dato k="Terminal" v={r.terminal} />}
                     </View>
                   )}

@@ -81,7 +81,7 @@ export default function Home() {
 
       {/* Cifras reales */}
       <section className="mt-2 px-2">
-        <h2 className="heading px-3 pb-4 pt-10 text-[clamp(1.6rem,4vw,3rem)] md:px-6 md:pt-14">Todo el transporte, en un solo lugar.</h2>
+        <h2 className="heading px-3 pb-4 pt-10 text-[clamp(1.6rem,4vw,3rem)] md:px-6 md:pt-14">Todo el transporte en un solo lugar.</h2>
         <Cifras />
       </section>
 

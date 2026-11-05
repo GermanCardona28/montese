@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Animated, Easing, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import BusCalle from "@/components/BusCalle";
 import { Cartel, LogoMark, Wordmark } from "@/components/Marca";
 import Planificador from "@/components/Planificador";
 import { Aparece, Boton, Txt } from "@/components/ui";
+import { useReinicioPestana } from "@/lib/reinicio";
 import { cargarRutasMapa } from "@/lib/rutas";
 import { C, F, R } from "@/theme";
 
@@ -43,7 +44,7 @@ function Cifras() {
 
   const tile = (color: string, ink: string, n: string, txt: string, ancho: "mitad" | "todo", big = false) => (
     <View style={[s.tile, { backgroundColor: color, flexBasis: ancho === "mitad" ? "48.5%" : "100%" }]}>
-      <Text style={{ fontFamily: F.xbold, fontSize: big ? 52 : 34, letterSpacing: -2, color: ink }}>{n}</Text>
+      <Text style={{ fontFamily: F.xbold, fontSize: big ? 52 : 34, lineHeight: big ? 54 : 36, letterSpacing: -2, color: ink, includeFontPadding: false }}>{n}</Text>
       <Text style={{ fontFamily: F.semi, fontSize: 14, color: ink }}>{txt}</Text>
     </View>
   );
@@ -81,6 +82,8 @@ function DibujoPaso({ i }: { i: number }) {
 export default function Inicio() {
   const { top } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const pagina = useRef<ComponentRef<typeof ScrollView>>(null);
+  useReinicioPestana("index", () => pagina.current?.scrollTo({ y: 0, animated: true }));
   const tam = Math.min(96, Math.round((width - 40) / 4.6));
   const linea = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -92,7 +95,7 @@ export default function Inicio() {
   });
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: top + 14, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={pagina} style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: top + 14, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
       <View style={{ paddingHorizontal: 20, gap: 14 }}>
         <Wordmark />
         <View style={{ marginTop: 18 }}>
@@ -123,12 +126,12 @@ export default function Inicio() {
       </View>
 
       <View style={{ paddingHorizontal: 8, marginTop: 24, gap: 12 }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 24, letterSpacing: -0.6, color: C.ink, paddingHorizontal: 12 }}>Todo el transporte, en un solo lugar.</Text>
+        <Text style={{ fontFamily: F.bold, fontSize: 24, letterSpacing: -0.6, color: C.ink, paddingHorizontal: 12 }}>Todo el transporte en un solo lugar.</Text>
         <Cifras />
       </View>
 
       <View style={[s.cierre]}>
-        <Text style={{ fontFamily: F.xbold, fontSize: Math.min(60, tam * 0.75), lineHeight: Math.min(60, tam * 0.75) * 1.0, letterSpacing: -2.4, color: C.dark }}>Ya sabe{"\n"}cuál coger.</Text>
+        <Text style={{ fontFamily: F.xbold, fontSize: Math.min(60, tam * 0.75), lineHeight: Math.min(60, tam * 0.75) * 1.18, letterSpacing: -2.4, color: C.dark, paddingBottom: 6 }}>Ya sabe{"\n"}cuál coger.</Text>
         <Txt style={{ color: C.dark, fontFamily: F.semi }}>Mire el mapa con todas las rutas o planee su próximo viaje.</Txt>
         <Boton texto="Ver el mapa" variante="oscuro" onPress={() => router.navigate("/mapa")} />
       </View>
@@ -161,6 +164,6 @@ export default function Inicio() {
 
 const s = StyleSheet.create({
   paso: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: R, paddingVertical: 14, paddingHorizontal: 12 },
-  tile: { borderRadius: R, padding: 18, gap: 2, justifyContent: "space-between", minHeight: 108 },
+  tile: { borderRadius: R, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16, gap: 8, justifyContent: "flex-start" },
   cierre: { backgroundColor: C.yellow, borderRadius: R, marginHorizontal: 8, marginTop: 8, padding: 22, gap: 14 },
 });

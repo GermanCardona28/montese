@@ -26,6 +26,8 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
   const mapa = useRef<MapView>(null);
   const [bus, setBus] = useState<LatLng | null>(null);
   const [fijarMarcadores, setFijarMarcadores] = useState(false);
+  // En Android, tocar una línea también dispara el toque del mapa y la ruta se deseleccionaba al instante
+  const ultimoToque = useRef(0);
 
   const lineas = useMemo(() => new Map(rutas.map((r) => [r.id, lineaDe(r).coords.map(ll)])), [rutas]);
   const sel = rutas.find((r) => r.id === selId) ?? null;
@@ -100,29 +102,47 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
       showsTraffic={!!trafico}
       showsUserLocation
       toolbarEnabled={false}
-      onPress={() => onSelect?.(null)}
+      onPress={() => {
+        if (Date.now() - ultimoToque.current < 600) return;
+        onSelect?.(null);
+      }}
     >
       {rutas.map((r) => {
         const activa = selId === r.id;
         const color = colorRuta(r);
-        return (
+        const tocar = () => {
+          ultimoToque.current = Date.now();
+          onSelect?.(r.id);
+        };
+        return [
+          // Las rutas se dibujan al 75 % de opacidad para que el mapa no se sature; la elegida va al 100 %
           <Polyline
             key={r.id}
             coordinates={lineas.get(r.id) ?? []}
-            strokeColor={atenuar && !activa ? `${color}33` : color}
+            strokeColor={activa ? color : atenuar ? `${color}33` : `${color}BF`}
             strokeWidth={activa ? 8 : 4}
             lineCap="round"
             lineJoin="round"
-            tappable
             zIndex={activa ? 5 : 1}
-            onPress={() => onSelect?.(r.id)}
-          />
-        );
+          />,
+          // Línea ancha y casi transparente encima: es el área que toca el dedo
+          !viaje && (
+            <Polyline
+              key={`${r.id}-toque`}
+              coordinates={lineas.get(r.id) ?? []}
+              strokeColor={`${color}01`}
+              strokeWidth={26}
+              tappable
+              zIndex={activa ? 6 : 2}
+              onPress={tocar}
+            />
+          ),
+        ];
       })}
 
       {viaje?.pasos.map((p, i) =>
         p.tipo === "caminar" ? (
-          <Polyline key={`w${i}`} coordinates={[ll(p.desde), ll(p.hasta)]} strokeColor={C.dark} strokeWidth={4} lineDashPattern={[10, 10]} zIndex={6} />
+          <Polyline key={`w${i}`} coordinates={(p.camino ?? [p.desde, p.hasta]).map(ll)} strokeColor={C.dark} strokeWidth={4} lineDashPattern={[10, 10]} zIndex={6} />
         ) : (
           <Polyline key={`b${i}`} coordinates={p.tramo.map(ll)} strokeColor={colorRuta(p.ruta)} strokeWidth={8} lineCap="round" lineJoin="round" zIndex={7} />
         )

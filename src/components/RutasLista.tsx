@@ -3,13 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BusColor, FlotaTexto } from "@/components/Flota";
-import { cargarRutasLista, estadoAhora, esHoraPico, hhmm, type Ruta } from "@/lib/rutas";
+import { useReinicioPestana } from "@/lib/reinicio";
+import { cargarRutasLista, estadoAhora, esHoraPico, flotaDe, hhmm, type Ruta } from "@/lib/rutas";
 
-export default function RutasLista({ empresa }: { empresa?: string }) {
+export default function RutasLista({ empresa, pestana }: { empresa?: string; pestana?: string }) {
   const [rutas, setRutas] = useState<Ruta[] | null>(null);
   const [error, setError] = useState(false);
   const [q, setQ] = useState("");
   const [abierta, setAbierta] = useState<string | null>(null);
+  // Doble toque en la pestaña: cierra el detalle, limpia la búsqueda y sube al principio
+  useReinicioPestana(pestana ?? "-", () => {
+    if (!pestana) return;
+    setQ("");
+    setAbierta(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   useEffect(() => {
     cargarRutasLista().then(setRutas).catch(() => setError(true));
@@ -56,7 +64,7 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                   <span className="min-w-0 flex-1">
                     <span className="block text-[1.05rem] font-semibold leading-snug">{r.nombre}</span>
                     <span className="mt-1.5 flex items-center gap-2 text-sm text-muted">
-                      <BusColor empresa={r.companies} size={34} />
+                      <BusColor empresa={flotaDe(r)} size={34} />
                       <span className="truncate">{r.companies?.nombre}</span>
                     </span>
                     {!s ? (
@@ -73,9 +81,9 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                 {open && (
                   <div className="rise px-4 pb-5" style={{ ["--d" as string]: "0ms" }}>
                     <div className="flex items-center gap-3 rounded-[var(--r-sm)] bg-bg p-3">
-                      <BusColor empresa={r.companies} size={64} />
+                      <BusColor empresa={flotaDe(r)} size={64} />
                       <p className="text-[0.95rem] leading-snug">
-                        Busca un bus <FlotaTexto empresa={r.companies} className="font-semibold lowercase" />
+                        Busca un bus <FlotaTexto empresa={flotaDe(r)} className="font-semibold lowercase" />
                       </p>
                     </div>
                     {s && (
@@ -84,7 +92,6 @@ export default function RutasLista({ empresa }: { empresa?: string }) {
                         <dt className="text-muted">Último despacho</dt><dd className="font-semibold">{hhmm(s.ultima_salida)}</dd>
                         <dt className="text-muted">Frecuencia pico</dt><dd className="font-semibold">{s.frecuencia_pico_min} min</dd>
                         <dt className="text-muted">Frecuencia valle</dt><dd className="font-semibold">{s.frecuencia_valle_min} min</dd>
-                        {r.longitud_km && (<><dt className="text-muted">Longitud</dt><dd className="font-semibold">{r.longitud_km} km</dd></>)}
                         {r.terminal && (<><dt className="text-muted">Terminal</dt><dd className="font-semibold">{r.terminal}</dd></>)}
                       </dl>
                     )}

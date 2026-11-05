@@ -85,7 +85,7 @@ export default function MapaGoogle({ rutas, selId, onSelect, viaje, className = 
     const bounds = new g.maps.LatLngBounds();
     for (const r of rutas) {
       const path = lineaDe(r).coords.map(ll);
-      const vis = new g.maps.Polyline({ path, strokeColor: colorRuta(r), strokeWeight: 4, strokeOpacity: 0.85, map: mapa.current, zIndex: 1 });
+      const vis = new g.maps.Polyline({ path, strokeColor: colorRuta(r), strokeWeight: 4, strokeOpacity: 0.75, map: mapa.current, zIndex: 1 });
       const hit = new g.maps.Polyline({ path, strokeColor: "#000", strokeWeight: 22, strokeOpacity: 0, map: mapa.current, zIndex: 2 });
       hit.addListener("click", () => alSeleccionar.current?.(r.id));
       lineas.current.set(r.id, [vis, hit]);
@@ -102,7 +102,7 @@ export default function MapaGoogle({ rutas, selId, onSelect, viaje, className = 
     const map = mapa.current;
     for (const [id, [vis]] of lineas.current.entries()) {
       const activa = selId === id;
-      vis.setOptions({ strokeWeight: activa ? 8 : 4, strokeOpacity: selId || viaje ? (activa ? 1 : 0.14) : 0.85, zIndex: activa ? 5 : 1 });
+      vis.setOptions({ strokeWeight: activa ? 8 : 4, strokeOpacity: selId || viaje ? (activa ? 1 : 0.14) : 0.75, zIndex: activa ? 5 : 1 });
     }
     extras.current.forEach((o) => (o.setMap ? o.setMap(null) : (o.map = null)));
     extras.current = [];
@@ -120,7 +120,7 @@ export default function MapaGoogle({ rutas, selId, onSelect, viaje, className = 
         if (p.tipo === "caminar") {
           extras.current.push(
             new g.maps.Polyline({
-              path: [ll(p.desde), ll(p.hasta)],
+              path: (p.camino ?? [p.desde, p.hasta]).map(ll),
               strokeOpacity: 0,
               icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, strokeColor: "#191919", scale: 3 }, offset: "0", repeat: "14px" }],
               map,

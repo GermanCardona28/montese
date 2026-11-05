@@ -11,7 +11,7 @@ export default function Rutas() {
       <p className="rise mb-6 mt-3 max-w-[38ch] text-xl" style={{ ["--d" as string]: "400ms" }}>
         Todas las rutas de bus del área metropolitana, con su horario, frecuencia y pasaje.
       </p>
-      <RutasLista />
+      <RutasLista pestana="/rutas/" />
     </main>
   );
 }

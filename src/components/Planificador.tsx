@@ -7,8 +7,10 @@ import { buscarLugar, codificarLugar, miUbicacion, resolverLugar, type Lugar } f
 type Campo = "a" | "b";
 
 const CLAVE_RECIENTES = "montese.recientes";
+const CLAVE_GUARDADOS = "montese.guardados";
 
-const ATAJOS = ["UIS", "Cabecera", "Cañaveral", "Centro", "Terminal de Transportes", "Floridablanca", "Girón", "Piedecuesta"];
+/** Un lugar con el nombre que le puso la persona: "Casa", "Trabajo", "Casa de mi amigo"… */
+type Guardado = { nombre: string; lugar: Lugar };
 
 export default function Planificador() {
   const router = useRouter();
@@ -20,11 +22,15 @@ export default function Planificador() {
   const [aviso, setAviso] = useState("");
   const abort = useRef<AbortController | null>(null);
   const [recientes, setRecientes] = useState<Lugar[]>([]);
+  const [guardados, setGuardados] = useState<Guardado[]>([]);
+  const [nombrando, setNombrando] = useState<Campo | null>(null);
+  const [alias, setAlias] = useState("");
 
   // Menos esfuerzo: si ya hay permiso, el punto de partida es tu ubicación; y se recuerdan los destinos recientes
   useEffect(() => {
     try {
       setRecientes(JSON.parse(localStorage.getItem(CLAVE_RECIENTES) ?? "[]"));
+      setGuardados(JSON.parse(localStorage.getItem(CLAVE_GUARDADOS) ?? "[]"));
     } catch {}
     navigator.permissions
       ?.query({ name: "geolocation" })
@@ -90,17 +96,46 @@ export default function Planificador() {
     }
   };
 
-  const atajo = async (q: string) => {
-    const c: Campo = lugar.a && !lugar.b ? "b" : activo;
+  // Lupa del teclado (Enter): busca en el momento, sin esperar la pausa de escritura
+  const buscarYa = async (c: Campo) => {
+    const q = texto[c].trim();
+    if (q.length < 2) return;
+    setActivo(c);
+    abort.current?.abort();
+    abort.current = new AbortController();
+    setBuscando(true);
     setAviso("");
     try {
-      const r = await buscarLugar(q);
-      if (r[0]) elegir(c, r[0]);
-      else setAviso("No encontré ese sitio.");
-    } catch {
-      setAviso("No pude buscar ahora mismo.");
+      const r = await buscarLugar(q, abort.current.signal);
+      setSugerencias(r);
+      if (!r.length) setAviso("No encontré ese sitio en el área metropolitana. Prueba con el barrio o un lugar conocido.");
+      else if (r.length === 1) await elegir(c, r[0]);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setAviso("No pude buscar ahora mismo. Revisa tu conexión.");
+    } finally {
+      setBuscando(false);
     }
   };
+
+  // Lugares guardados con nombre propio
+  const persistir = (g: Guardado[]) => {
+    setGuardados(g);
+    try {
+      localStorage.setItem(CLAVE_GUARDADOS, JSON.stringify(g));
+    } catch {}
+  };
+  const guardar = (c: Campo) => {
+    const l = lugar[c];
+    const n = alias.trim();
+    if (!l || !n) return;
+    persistir([{ nombre: n, lugar: { ...l, nombre: n } }, ...guardados.filter((g) => g.nombre.toLowerCase() !== n.toLowerCase())].slice(0, 12));
+    setNombrando(null);
+    setAlias("");
+    setAviso(`Guardé este lugar como “${n}”.`);
+  };
+  const quitar = (n: string) => persistir(guardados.filter((g) => g.nombre !== n));
+  const usarGuardado = (g: Guardado) => elegir(lugar.a ? "b" : activo, { ...g.lugar, nombre: g.nombre });
+  const yaGuardado = (l: Lugar) => guardados.some((g) => Math.abs(g.lugar.pos[0] - l.pos[0]) < 1e-4 && Math.abs(g.lugar.pos[1] - l.pos[1]) < 1e-4);
 
   const invertir = () => {
     setLugar((p) => ({ a: p.b, b: p.a }));
@@ -138,6 +173,12 @@ export default function Planificador() {
         aria-label={c === "a" ? "Punto de partida" : "Destino"}
         autoComplete="off"
         enterKeyHint="search"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            buscarYa(c);
+          }
+        }}
       />
     </div>
   );
@@ -176,6 +217,66 @@ export default function Planificador() {
         </button>
       </div>
 
+      {guardados.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Mis lugares">
+          {guardados.map((g) => (
+            <span key={g.nombre} className="inline-flex items-center gap-2.5 rounded-[var(--r)] bg-green px-4 py-2 text-[0.95rem] font-semibold text-white">
+              <button onClick={() => usarGuardado(g)} aria-label={`Usar ${g.nombre}`}>★ {g.nombre}</button>
+              <button onClick={() => quitar(g.nombre)} className="text-white/70 hover:text-white" aria-label={`Quitar ${g.nombre}`}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!nombrando &&
+        (["a", "b"] as Campo[]).map((c) => {
+          const l = lugar[c];
+          if (!l || yaGuardado(l)) return null;
+          return (
+            <div key={c} className="mt-3">
+              <button
+                onClick={() => {
+                  setNombrando(c);
+                  setAlias("");
+                }}
+                className="rounded-[var(--r)] bg-[#111]/10 px-4 py-2 text-[0.95rem] font-semibold transition-colors hover:bg-[#111]/20"
+              >
+                ★ Guardar el punto {c.toUpperCase()} con un nombre
+              </button>
+            </div>
+          );
+        })}
+
+      {nombrando && (
+        <div className="mt-4 flex flex-col gap-2.5">
+          <p className="text-[0.95rem] font-semibold">¿Cómo quieres llamar a “{lugar[nombrando]?.nombre}”?</p>
+          <input
+            className="campo"
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && guardar(nombrando)}
+            placeholder="Casa, Trabajo, Casa de mi amigo…"
+            maxLength={30}
+            autoFocus
+            aria-label="Nombre del lugar"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => guardar(nombrando)} disabled={!alias.trim()} className="btn btn-dark !min-h-11 !px-4 !text-base">
+              Guardar
+            </button>
+            <button
+              onClick={() => {
+                setNombrando(null);
+                setAlias("");
+              }}
+              className="btn !min-h-11 !px-4 !text-base bg-[#111]/10 text-[#111] hover:bg-[#111]/20"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {recientes.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2" aria-label="Destinos recientes">
           {recientes.map((r) => (
@@ -189,18 +290,6 @@ export default function Planificador() {
           ))}
         </div>
       )}
-
-      <div className="mt-4 flex flex-wrap gap-2" aria-label="Sitios frecuentes">
-        {ATAJOS.map((q) => (
-          <button
-            key={q}
-            onClick={() => atajo(q)}
-            className="rounded-[var(--r)] bg-[#111]/10 px-4 py-2 text-[0.95rem] font-semibold transition-colors hover:bg-[#111]/20 active:scale-95"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
 
       <button onClick={ir} disabled={!listo} className="btn btn-dark mt-5 w-full">
         Ver cómo llegar

@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapaRutas from "@/components/MapaRutas";
 import { BuscaBus, Cartel } from "@/components/Marca";
 import { Aparece, Boton, Esqueleto, Txt } from "@/components/ui";
-import { cargarRutasMapa, hhmm, type RutaMapa } from "@/lib/rutas";
+import { useReinicioPestana } from "@/lib/reinicio";
+import { cargarRutasMapa, flotaDe, hhmm, type RutaMapa } from "@/lib/rutas";
 import { C, F, R, Rs } from "@/theme";
 
 export default function Mapa() {
@@ -15,6 +16,10 @@ export default function Mapa() {
   const [sel, setSel] = useState<string | null>(null);
   const [trafico, setTrafico] = useState(false);
   const [error, setError] = useState(false);
+  useReinicioPestana("mapa", () => {
+    setSel(null);
+    setTrafico(false);
+  });
 
   useEffect(() => {
     cargarRutasMapa().then(setRutas).catch(() => setError(true));
@@ -62,7 +67,7 @@ export default function Mapa() {
                 </View>
                 <Boton texto="Todas" variante="gris" chico onPress={() => setSel(null)} />
               </View>
-              <BuscaBus empresa={elegida.companies} />
+              <BuscaBus empresa={flotaDe(elegida)} />
               <View style={{ gap: 4 }}>
                 {!!elegida.tarifa_cop && <Fila k="Pasaje" v={`$${elegida.tarifa_cop.toLocaleString("es-CO")}`} />}
                 {h && <Fila k="Horario" v={`${hhmm(h.primera_salida)} – ${hhmm(h.ultima_salida)}`} />}
