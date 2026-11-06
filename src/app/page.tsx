@@ -88,8 +88,8 @@ export default function Home() {
       {/* Cierre invertido */}
       <section className="mt-2 flex min-h-[44svh] flex-col justify-between gap-8 rounded-[var(--r)] bg-yellow p-6 text-[#111] md:mx-2 md:min-h-[80svh] md:p-12">
         <h2 className="display text-[clamp(2.8rem,13vw,11rem)]">
-          <span className="block">Ya sabe</span>
-          <span className="block">cuál coger.</span>
+          <span className="block">¿Ya sabe</span>
+          <span className="block">cuál coger?</span>
         </h2>
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <p className="max-w-[34ch] text-lg font-medium md:text-xl">Mire el mapa con todas las rutas o planee su próximo viaje.</p>

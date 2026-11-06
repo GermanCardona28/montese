@@ -131,7 +131,7 @@ export default function Inicio() {
       </View>
 
       <View style={[s.cierre]}>
-        <Text style={{ fontFamily: F.xbold, fontSize: Math.min(60, tam * 0.75), lineHeight: Math.min(60, tam * 0.75) * 1.18, letterSpacing: -2.4, color: C.dark, paddingBottom: 6 }}>Ya sabe{"\n"}cuál coger.</Text>
+        <Text style={{ fontFamily: F.xbold, fontSize: Math.min(60, tam * 0.75), lineHeight: Math.min(60, tam * 0.75) * 1.18, letterSpacing: -2.4, color: C.dark, paddingBottom: 6 }}>¿Ya sabe{"\n"}cuál coger?</Text>
         <Txt style={{ color: C.dark, fontFamily: F.semi }}>Mire el mapa con todas las rutas o planee su próximo viaje.</Txt>
         <Boton texto="Ver el mapa" variante="oscuro" onPress={() => router.navigate("/mapa")} />
       </View>

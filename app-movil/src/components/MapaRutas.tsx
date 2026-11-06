@@ -28,6 +28,9 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
   const [fijarMarcadores, setFijarMarcadores] = useState(false);
   // En Android, tocar una línea también dispara el toque del mapa y la ruta se deseleccionaba al instante
   const ultimoToque = useRef(0);
+  // Grosor según el zoom: de lejos, hilos finos; de cerca, el grosor normal
+  const [zoom, setZoom] = useState(10);
+  const fino = Math.max(1, Math.min(4, (zoom - 10) * 0.6 + 1));
 
   const lineas = useMemo(() => new Map(rutas.map((r) => [r.id, lineaDe(r).coords.map(ll)])), [rutas]);
   const sel = rutas.find((r) => r.id === selId) ?? null;
@@ -101,6 +104,10 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
       initialRegion={INICIO}
       showsTraffic={!!trafico}
       showsUserLocation
+      onRegionChangeComplete={(r) => {
+        const z = Math.round(Math.log2(360 / r.longitudeDelta) * 2) / 2;
+        setZoom((a) => (a === z ? a : z));
+      }}
       toolbarEnabled={false}
       onPress={() => {
         if (Date.now() - ultimoToque.current < 600) return;
@@ -119,8 +126,8 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
           <Polyline
             key={r.id}
             coordinates={lineas.get(r.id) ?? []}
-            strokeColor={activa ? color : atenuar ? `${color}33` : `${color}BF`}
-            strokeWidth={activa ? 8 : 4}
+            strokeColor={activa || !atenuar ? `${color}BF` : `${color}14`}
+            strokeWidth={activa ? fino * 2 : fino}
             lineCap="round"
             lineJoin="round"
             zIndex={activa ? 5 : 1}
@@ -130,7 +137,7 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, trafico, styl
             <Polyline
               key={`${r.id}-toque`}
               coordinates={lineas.get(r.id) ?? []}
-              strokeColor={`${color}01`}
+              strokeColor="transparent"
               strokeWidth={26}
               tappable
               zIndex={activa ? 6 : 2}

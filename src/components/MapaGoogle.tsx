@@ -100,9 +100,10 @@ export default function MapaGoogle({ rutas, selId, onSelect, viaje, className = 
     if (!listo) return;
     const g = (window as any).google;
     const map = mapa.current;
+    const fino = () => Math.max(1, Math.min(4, ((map.getZoom?.() ?? 12) - 10) * 0.6 + 1));
     for (const [id, [vis]] of lineas.current.entries()) {
       const activa = selId === id;
-      vis.setOptions({ strokeWeight: activa ? 8 : 4, strokeOpacity: selId || viaje ? (activa ? 1 : 0.14) : 0.75, zIndex: activa ? 5 : 1 });
+      vis.setOptions({ strokeWeight: activa ? fino() * 2 : fino(), strokeOpacity: (selId || viaje) && !activa ? 0.08 : 0.75, zIndex: activa ? 5 : 1 });
     }
     extras.current.forEach((o) => (o.setMap ? o.setMap(null) : (o.map = null)));
     extras.current = [];
@@ -173,6 +174,18 @@ export default function MapaGoogle({ rutas, selId, onSelect, viaje, className = 
       raf.current = requestAnimationFrame(paso);
     }
   }, [selId, viaje, rutas, listo]);
+
+  // El grosor de las líneas sigue al zoom: finas de lejos, normales de cerca
+  useEffect(() => {
+    if (!listo) return;
+    const map = mapa.current;
+    const aplicar = () => {
+      const f = Math.max(1, Math.min(4, (map.getZoom() - 10) * 0.6 + 1));
+      for (const [id, [vis]] of lineas.current.entries()) vis.setOptions({ strokeWeight: selId === id ? f * 2 : f });
+    };
+    const l = map.addListener("zoom_changed", aplicar);
+    return () => l.remove();
+  }, [selId, rutas, listo]);
 
   return (
     <div className={className}>

@@ -34,6 +34,9 @@ function marcador(texto: string, fondo: string, ancho = 38) {
 }
 
 /** Mapa de rutas: líneas con el color de cada flota, clic para ver una ruta completa, viaje A→B y un bus que recorre el trazado. */
+/** Grosor según el zoom: de lejos, hilos finos; de cerca, el grosor normal (k = 2 para la ruta elegida) */
+const ANCHO = (k: number): any => ["interpolate", ["linear"], ["zoom"], 10, 1 * k, 15, 3.5 * k];
+
 export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "" }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
@@ -120,7 +123,7 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "
         type: "line",
         source: src,
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": colorRuta(r), "line-width": 3.5, "line-opacity": 0.75 },
+        paint: { "line-color": colorRuta(r), "line-width": ANCHO(1), "line-opacity": 0.75 },
       });
       // capa ancha e invisible para que se pueda tocar la ruta con el dedo
       map.addLayer({
@@ -147,8 +150,8 @@ export default function MapaRutas({ rutas, selId, onSelect, viaje, className = "
       const id = `ruta-${r.id}`;
       if (!map.getLayer(id)) continue;
       const activa = selId === r.id;
-      map.setPaintProperty(id, "line-width", activa ? 7 : 3.5);
-      map.setPaintProperty(id, "line-opacity", selId || enViaje ? (activa ? 1 : 0.14) : 0.75);
+      map.setPaintProperty(id, "line-width", ANCHO(activa ? 2 : 1));
+      map.setPaintProperty(id, "line-opacity", (selId || enViaje) && !activa ? 0.08 : 0.75);
       if (activa) map.moveLayer(id);
     }
 
