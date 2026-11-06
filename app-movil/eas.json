@@ -12,7 +12,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://zxpoxnvyxwsarxufzgdk.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_9yVCu62P5boAYby2zhlpwg_FZIs7Xsc"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "android": {
@@ -21,7 +22,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://zxpoxnvyxwsarxufzgdk.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_9yVCu62P5boAYby2zhlpwg_FZIs7Xsc"
-      }
+      },
+      "channel": "production"
     }
   }
 }

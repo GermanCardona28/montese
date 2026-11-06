@@ -18,7 +18,10 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -29,7 +32,10 @@
         "expo-build-properties",
         {
           "android": {
-            "buildArchs": ["arm64-v8a", "armeabi-v7a"],
+            "buildArchs": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ],
             "enableMinifyInReleaseBuilds": false,
             "enableShrinkResourcesInReleaseBuilds": false
           }
@@ -64,6 +70,9 @@
         "projectId": "6418f65f-795c-4735-8122-3f89c5dcf7a6"
       }
     },
-    "owner": "germancardona28"
+    "owner": "germancardona28",
+    "updates": {
+      "url": "https://u.expo.dev/6418f65f-795c-4735-8122-3f89c5dcf7a6"
+    }
   }
 }
