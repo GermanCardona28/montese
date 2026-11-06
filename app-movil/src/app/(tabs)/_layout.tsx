@@ -5,8 +5,6 @@ import Svg, { Path } from "react-native-svg";
 import { reiniciarPestana } from "@/lib/reinicio";
 import { C, F } from "@/theme";
 
-const ultimoToque: Record<string, number> = {};
-
 const ICONOS: Record<string, string> = {
   index: "M12 3 3 10v10h6v-6h6v6h6V10z",
   rutas: "M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z",
@@ -31,12 +29,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenListeners={({ route }) => ({
-        // Dos toques seguidos en el ícono: la pestaña vuelve a su pantalla inicial
-        tabPress: () => {
-          const ahora = Date.now();
-          if (ahora - (ultimoToque[route.name] ?? 0) < 500) reiniciarPestana(route.name);
-          ultimoToque[route.name] = ahora;
-        },
+        // Un toque en el ícono: la pestaña vuelve a su pantalla inicial
+        tabPress: () => reiniciarPestana(route.name),
       })}
       screenOptions={{
         headerShown: false,

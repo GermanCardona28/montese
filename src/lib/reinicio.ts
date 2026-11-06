@@ -7,13 +7,10 @@ import { useEffect, useRef } from "react";
  * (cierra el detalle, limpia la búsqueda, sube al principio…).
  */
 const EVENTO = "montese:reinicio";
-const ultimo: Record<string, number> = {};
 
-/** Se llama en cada toque a una pestaña; si es el segundo seguido, avisa a la pantalla. */
+/** Se llama en cada toque a una pestaña: avisa a la pantalla para que vuelva a su inicio. */
 export function toquePestana(nombre: string) {
-  const ahora = Date.now();
-  if (ahora - (ultimo[nombre] ?? 0) < 500) window.dispatchEvent(new CustomEvent(EVENTO, { detail: nombre }));
-  ultimo[nombre] = ahora;
+  window.dispatchEvent(new CustomEvent(EVENTO, { detail: nombre }));
 }
 
 export function useReinicioPestana(nombre: string, accion: () => void) {
