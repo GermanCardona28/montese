@@ -60,7 +60,7 @@ export default function Mapa() {
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[0.95rem]">
               {elegida.tarifa_cop && (<><dt className="text-muted">Pasaje</dt><dd className="font-semibold">${elegida.tarifa_cop.toLocaleString("es-CO")}</dd></>)}
               {s && (<><dt className="text-muted">Horario</dt><dd className="font-semibold">{hhmm(s.primera_salida)} – {hhmm(s.ultima_salida)}</dd></>)}
-              {s && (<><dt className="text-muted">Cada</dt><dd className="font-semibold">{s.frecuencia_pico_min}–{s.frecuencia_valle_min} min</dd></>)}
+              {s && (<><dt className="text-muted">Cada</dt><dd className="font-semibold">{Math.min(s.frecuencia_pico_min ?? 0, s.frecuencia_valle_min ?? 0)}–{Math.max(s.frecuencia_pico_min ?? 0, s.frecuencia_valle_min ?? 0)} min</dd></>)}
               {elegida.longitud_km && (<><dt className="text-muted">Recorrido</dt><dd className="font-semibold">{elegida.longitud_km} km</dd></>)}
               {elegida.terminal && (<><dt className="text-muted">Terminal</dt><dd className="font-semibold">{elegida.terminal}</dd></>)}
             </dl>

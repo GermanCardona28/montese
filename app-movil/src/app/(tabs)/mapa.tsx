@@ -71,7 +71,7 @@ export default function Mapa() {
               <View style={{ gap: 4 }}>
                 {!!elegida.tarifa_cop && <Fila k="Pasaje" v={`$${elegida.tarifa_cop.toLocaleString("es-CO")}`} />}
                 {h && <Fila k="Horario" v={`${hhmm(h.primera_salida)} – ${hhmm(h.ultima_salida)}`} />}
-                {h && <Fila k="Cada" v={`${h.frecuencia_pico_min}–${h.frecuencia_valle_min} min`} />}
+                {h && <Fila k="Cada" v={`${Math.min(h.frecuencia_pico_min ?? 0, h.frecuencia_valle_min ?? 0)}–${Math.max(h.frecuencia_pico_min ?? 0, h.frecuencia_valle_min ?? 0)} min`} />}
                 {!!elegida.longitud_km && <Fila k="Recorrido" v={`${elegida.longitud_km} km`} />}
               </View>
             </View>
